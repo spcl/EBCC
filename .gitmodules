@@ -1,0 +1,9 @@
+[submodule "src/openjpeg"]
+	path = src/openjpeg
+	url = https://github.com/uclouvain/openjpeg.git
+[submodule "src/wavelib"]
+	path = src/wavelib
+	url = https://github.com/rafat/wavelib.git
+[submodule "src/zstd"]
+	path = src/zstd
+	url = https://github.com/facebook/zstd.git
