@@ -1,0 +1,16 @@
+build:
+	gcc -Wall -g -O2 -shared -fPIC -o libh5z_j2k.so -Lzstd/lib -Iwavelib/header -Lopenjpeg/build/bin -Iopenjpeg/src/lib/openjp2 -Iopenjpeg/build/src/lib/openjp2 -lzstd -lopenjp2 h5z_j2k.c wavelib/build/Bin/libwavelib.a
+setup:
+	cd zstd
+	make
+	cd ..
+	mkdir openjpeg/build
+	cd openjpeg/build
+	cmake .. -DCMAKE_BUILD_TYPE=Release
+	make
+	cd ../..
+	mkdir wavelib/build
+	cd wavelib/build
+	cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
+	make
+	cd ../..
