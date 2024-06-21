@@ -20,7 +20,8 @@ jp2spwv_filter = JP2SPWV_Filter(
     height=data.shape[0],  # height of each 2D data chunk
     width=data.shape[1],  # width of each 2D data chunk
     data_dim=len(data.shape), # data dimension, required to specify the HDF5 chunk shape
-    residual_opt=("max_error_target", 1.0)) # specify the max error target to be 1.0
+    residual_opt=("max_error_target", 1.0),# specify the max error target to be 1.0
+    filter_path=os.path.join(os.path.dirname(__file__), 'src')) # directory to the compiled HDF5 filter plugin
     # other possible residual_opt can be
     # `("quantile_error_target", xxx)` : max_error does not exceed the specified quantile value calculated from the compression error with only base compression method
     # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression

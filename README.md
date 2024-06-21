@@ -25,7 +25,6 @@ import os
 import h5py
 import numpy as np
 # specify the path of compiled HDF5 plugin libh5z_j2k.so
-os.environ["HDF5_PLUGIN_PATH"] = os.path.join(os.getcwd(), 'src')
 
 # generate data
 chunk_shape = (721, 1440)
@@ -37,7 +36,8 @@ jp2spwv_filter = JP2SPWV_Filter(
     height=chunk_shape[0],  # height of each 2D data chunk
     width=chunk_shape[1],  # width of each 2D data chunk
     data_dim=len(data.shape), # data dimension, required to specify the HDF5 chunk shape
-    residual_opt=("max_error_target", 1.0)) # specify the max error target to be 1.0
+    residual_opt=("max_error_target", 1.0), # specify the max error target to be 1.0
+    filter_path=os.path.join(os.path.dirname(__file__), 'src')) # directory to the compiled HDF5 filter plugin
     # other possible residual_opt can be
     # `("quantile_error_target", xxx)` : max_error does not exceed the specified quantile value calculated from the compression error with only base compression method
     # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression

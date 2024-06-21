@@ -1,6 +1,6 @@
 import argparse
 import struct
-import sys
+import os
 from typing import Tuple
 from collections.abc import Mapping
 
@@ -15,7 +15,7 @@ def float_to_uint32(f):
 class JP2SPWV_Filter(Mapping):
     FILTER_ID = 308
 
-    def __init__(self, base_cr: float, height: int, width: int, residual_opt: Tuple[str, float], data_dim: int = 2):
+    def __init__(self, base_cr: float, height: int, width: int, residual_opt: Tuple[str, float], data_dim: int = 2, filter_path: str = None):
         assert height > 0 and width > 0
         base_cr = float(base_cr)
         hdf_filter_opts = [int(height), int(width), float_to_uint32(base_cr)]
@@ -41,6 +41,9 @@ class JP2SPWV_Filter(Mapping):
 
         self.hdf_filter_opts = tuple(hdf_filter_opts)
         self.chunks = (*[1 for _ in range(self.data_dim - 2)], height, width)
+        if filter_path is None:
+            filter_path = os.path.join(os.path.dirname(__file__), 'src')
+        os.environ["HDF5_PLUGIN_PATH"] = filter_path
 
     # https://github.com/silx-kit/hdf5plugin/blob/main/src/hdf5plugin/_filters.py
     @property
