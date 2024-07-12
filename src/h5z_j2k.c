@@ -14,7 +14,7 @@ const H5Z_class2_t H5Z_J2K[1] = {{
     1,                              /* decoder_present flag (set to true) */
     "HDF5 j2k filter L&L",       /* Filter name for debugging    */
     NULL,                           /* The "can apply" callback     */
-    H5Z_filter_j2k_set_local,                           /* The "set local" callback     */
+    (H5Z_set_local_func_t) H5Z_filter_j2k_set_local,                           /* The "set local" callback     */
     (H5Z_func_t) H5Z_filter_j2k,    /* The actual filter function   */
 }};
 
@@ -65,26 +65,26 @@ static herr_t H5Z_filter_j2k_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk
 
     // if (H5Pget_filter_by_id(dcpl_id, H5Z_FILTER_J2K, &flags, &mem_cd_nelmts, mem_cd_values, 0, NULL, NULL) < 0) exit(-1);
 
-    hsize_t dims[H5S_MAX_RANK];
+    //hsize_t dims[H5S_MAX_RANK];
     hsize_t chunk_dims[H5S_MAX_RANK];
 
     H5Pget_filter_by_id(dcpl_id, H5Z_FILTER_J2K, &flags, &mem_cd_nelmts, mem_cd_values, 0, NULL, NULL);
 
     int ndims = H5Pget_chunk(dcpl_id, H5S_MAX_RANK, chunk_dims);
 
-    unsigned int cd_values[2 + ndims];
+    unsigned int cd_values[mem_cd_nelmts];
     
     // Insert the last two chunk dimensions at the beginning of the parameters
     cd_values[0] = (unsigned int)chunk_dims[ndims - 2];
     cd_values[1] = (unsigned int)chunk_dims[ndims - 1];
     
     // Copy the original parameters after the first two
-    for (int i = 0; i < ndims; i++) {
-        cd_values[2 + i] = (unsigned int)chunk_dims[i];
+    for (int i = 2; i < mem_cd_nelmts; i++) {
+        cd_values[i] = (unsigned int)mem_cd_values[i];
     }
 
     // Set the modified parameters
-    H5Pmodify_filter(dcpl_id, H5Z_FILTER_J2K, H5Z_FLAG_MANDATORY, 2 + ndims, cd_values);
+    H5Pmodify_filter(dcpl_id, H5Z_FILTER_J2K, H5Z_FLAG_MANDATORY, mem_cd_nelmts, cd_values);
 }
 
 /**
