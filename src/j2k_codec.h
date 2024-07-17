@@ -8,7 +8,7 @@
 
 #include "wavelet.h"
 #include "quantile.h"
-#include "zstd/lib/zstd.h"
+#include "zstd.h"
 #include <netcdf.h>
 #include <assert.h>
 #include <malloc.h>
