@@ -1,19 +1,22 @@
 import os
-os.environ["HDF5_PLUGIN_PATH"] = os.path.join(os.getcwd(), 'src')
+current_folder = os.path.dirname(__file__)
+os.environ["HDF5_PLUGIN_PATH"] = os.path.join(current_folder, 'src')
 
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
 from filter_wrapper import JP2SPWV_Filter
 
 try:
-    os.remove('test.hdf5')
+    os.remove(f'{current_folder}/test.hdf5')
 except:
     pass
 
-f = h5py.File('test.hdf5', 'a')
+f = h5py.File(f'{current_folder}/test.hdf5', 'a')
 
-data = np.load('test_data.npy')
+data = np.load(f'{current_folder}/test_data.npy')
 
 jp2spwv_filter = JP2SPWV_Filter(
     base_cr=100, # base compression ratio
@@ -21,7 +24,7 @@ jp2spwv_filter = JP2SPWV_Filter(
     width=data.shape[1],  # width of each 2D data chunk
     data_dim=len(data.shape), # data dimension, required to specify the HDF5 chunk shape
     residual_opt=("max_error_target", 1.0),# specify the max error target to be 1.0
-    filter_path=os.path.join(os.path.dirname(__file__), 'src')) # directory to the compiled HDF5 filter plugin
+    filter_path=os.path.join(current_folder, 'src')) # directory to the compiled HDF5 filter plugin
     # other possible residual_opt can be
     # `("quantile_error_target", xxx)` : max_error does not exceed the specified quantile value calculated from the compression error with only base compression method
     # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression
@@ -35,9 +38,9 @@ fig, (ax1, ax2) = plt.subplots(1, 2, layout='constrained')
 ax1.imshow(data)
 ax2.imshow(f['compressed'][:])
 
-fig.savefig('test.pdf', bbox_inches='tight')
+fig.savefig(f'{current_folder}/test.pdf', bbox_inches='tight')
 
-original_size = os.path.getsize('test_data.npy')
-compressed_size = os.path.getsize('test.hdf5')
+original_size = os.path.getsize(f'{current_folder}/test_data.npy')
+compressed_size = os.path.getsize(f'{current_folder}/test.hdf5')
 
 print(f'achieved compression ratio of {original_size/compressed_size}')
