@@ -9,7 +9,7 @@
 #include "wavelet.h"
 #include "quantile.h"
 #include "zstd.h"
-#include <netcdf.h>
+//#include <netcdf.h>
 #include <assert.h>
 #include <malloc.h>
 
