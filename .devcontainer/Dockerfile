@@ -37,14 +37,16 @@ RUN git clone https://github.com/rafat/wavelib.git && cd wavelib && git reset --
 
 RUN git clone https://github.com/luigifusco/compression-filter.git && cd compression-filter/src \
     && CPATH=/workspace/HDF_Group/HDF5/1.14.4.3/include/:/workspace/zstd-1.5.6/lib/:/workspace/openjpeg-2.5.2/src/lib/openjp2/:/workspace/openjpeg-2.5.2/build/src/lib/openjp2/:/workspace/wavelib/header \
-    LIBRARY_PATH=/workspace/wavelib/build/Bin/:/workspace/openjpeg-2.5.2/build/bin/:/workspace/zstd-1.5.6/lib/:/workspace/HDF_Group/HDF5/1.14.4.3/lib gcc -Wall -g -O2 -shared -fPIC -o libh5z_j2k.so  h5z_j2k.c -L/workspace/HDF_Group/HDF5/1.14.4.3/lib -lhdf5 -l:libzstd.a -l:libopenjp2.a
+    LIBRARY_PATH=/workspace/wavelib/build/Bin/:/workspace/openjpeg-2.5.2/build/bin/:/workspace/zstd-1.5.6/lib/:/workspace/HDF_Group/HDF5/1.14.4.3/lib gcc -Wall -g -O2 -shared -fPIC -o libh5z_j2k.so  h5z_j2k.c -L/workspace/HDF_Group/HDF5/1.14.4.3/lib -lhdf5 -l:libzstd.a -l:libopenjp2.a -l:libwavelib.a
 
 FROM base as final
 RUN git clone https://github.com/luigifusco/compression-filter.git
 COPY --from=build_plugin /workspace/compression-filter/src/libh5z_j2k.so /workspace/compression-filter/src
 COPY --from=build_plugin /workspace/HDF_Group/HDF5/1.14.4.3/ /workspace/HDF5
 ENV HDF5_DIR=/workspace/HDF5
+ENV LD_LIBRARY_PATH=/workspace/HDF5/lib:${LD_LIBRARY_PATH}
 
 RUN /opt/python/cp312-cp312/bin/pip install --no-cache-dir matplotlib h5py --no-binary=h5py
+# /opt/python/cp312-cp312/bin/python /workspace/compression-filter/test.py
 
 CMD ["/bin/bash"]
