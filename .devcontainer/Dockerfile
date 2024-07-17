@@ -48,5 +48,6 @@ ENV LD_LIBRARY_PATH=/workspace/HDF5/lib:${LD_LIBRARY_PATH}
 
 RUN /opt/python/cp312-cp312/bin/pip install --no-cache-dir matplotlib h5py --no-binary=h5py
 # /opt/python/cp312-cp312/bin/python /workspace/compression-filter/test.py
+# NOTE: h5py must use the same libhdf5.so as the one used to build the plugin (resolved by ldd)
 
 CMD ["/bin/bash"]
