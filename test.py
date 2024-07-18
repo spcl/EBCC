@@ -1,5 +1,5 @@
 import os
-current_folder = os.path.dirname(__file__)
+current_folder = os.path.dirname(os.path.realpath(__file__))
 os.environ["HDF5_PLUGIN_PATH"] = os.path.join(current_folder, 'src')
 
 import h5py
@@ -23,20 +23,26 @@ jp2spwv_filter = JP2SPWV_Filter(
     height=data.shape[0],  # height of each 2D data chunk
     width=data.shape[1],  # width of each 2D data chunk
     data_dim=len(data.shape), # data dimension, required to specify the HDF5 chunk shape
-    residual_opt=("max_error_target", 1.0),# specify the max error target to be 1.0
+    residual_opt=("relative_error_target", 0.0019),# specify the relative error target to be 0.0019
     filter_path=os.path.join(current_folder, 'src')) # directory to the compiled HDF5 filter plugin
     # other possible residual_opt can be
-    # `("quantile_error_target", xxx)` : max_error does not exceed the specified quantile value calculated from the compression error with only base compression method
+    # `("max_error_target", xxx)` : the max_error does not exceed the specified value
+    # `("quantile_target", xxx)` : specifies the quantile used to sparsify the wavelet transformed residual
     # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression
 
 print(dict(jp2spwv_filter))
 f.create_dataset('compressed', shape=data.shape, dtype=data.dtype, **jp2spwv_filter)
 
 f['compressed'][:] = data
+uncompressed = f['compressed'][:]
+
+# check if error target is correctly enforced
+max_error = np.max(np.abs(data - uncompressed) / np.abs(data))
+print('achieved max relative error:', max_error)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, layout='constrained')
 ax1.imshow(data)
-ax2.imshow(f['compressed'][:])
+ax2.imshow(uncompressed)
 
 fig.savefig(f'{current_folder}/test.pdf', bbox_inches='tight')
 

@@ -47,8 +47,9 @@ void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned in
             config->residual_cr = uint_ptr_to_float(&cd_values[4]);
             break;
         case MAX_ERROR:
+        case RELATIVE_ERROR:
             assert(cd_nelmts == 5);
-            config->max_error = uint_ptr_to_float(&cd_values[4]);
+            config->error = uint_ptr_to_float(&cd_values[4]);
             break;
         case QUANTILE:
             assert(cd_nelmts == 6);
@@ -61,7 +62,7 @@ void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned in
  * cd_values:
  *  rows
  *  columns
- *  residual mode: none=0, sparsification_ratio=1, max_error=2, quantile=3
+ *  residual mode: none=0, sparsification_ratio=1, max_error=2, relative_error=3, quantile=4
  *  max error (as float) OR quantile (as double)
 */
 // cd_values should be: frame rows, frame columns, compression_ratio, quantile (thousandth), levels, quantile (optional)

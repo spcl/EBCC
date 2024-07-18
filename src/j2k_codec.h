@@ -24,7 +24,8 @@ typedef struct {
     size_t offset;
 } codec_data_buffer_t;
 
-void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval, codec_data_buffer_t *codec_data_buffer);
+void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
+        codec_data_buffer_t *codec_data_buffer);
 
 void codec_data_buffer_init(codec_data_buffer_t* data) {
     const size_t initial_buffer_size = 1024;
@@ -78,7 +79,8 @@ OPJ_SIZE_T read_from_buffer_stream(void *output_buffer, OPJ_SIZE_T len, codec_da
     return n_bytes_to_read;
 }
 
-void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_cr, codec_data_buffer_t *codec_data_buffer) {
+void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_cr,
+        codec_data_buffer_t *codec_data_buffer) {
     size_t n_tiles = image_dims[0] / tile_dims[0];
     size_t tile_size = tile_dims[0] * tile_dims[1];
 
@@ -141,7 +143,8 @@ void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, floa
 
     if (n_tiles > 1) {
         for (OPJ_UINT32 i = 0; i < n_tiles; ++i) {
-            opj_write_tile(codec, i, ((OPJ_BYTE *) data) + i * (tile_size * sizeof(uint16_t)), tile_size * sizeof(uint16_t), stream);
+            opj_write_tile(codec, i, ((OPJ_BYTE *) data) + i * (tile_size * sizeof(uint16_t)),
+                    tile_size * sizeof(uint16_t), stream);
         }
     } else {
         opj_encode(codec, stream);
@@ -164,6 +167,7 @@ typedef enum {
     NONE,
     SPARSIFICATION_FACTOR,
     MAX_ERROR,
+    RELATIVE_ERROR,
     QUANTILE
 } residual_t;
 
@@ -171,6 +175,7 @@ const char* residual_t_names[] = {
     "NONE",
     "SPARSIFICATION_FACTOR",
     "MAX_ERROR",
+    "RELATIVE_ERROR",
     "QUANTILE"
 };
 
@@ -181,7 +186,7 @@ typedef struct {
     float base_cr;
     residual_t residual_compression_type;
     float residual_cr;
-    float max_error;
+    float error;
     double quantile;
 } codec_config_t;
 
@@ -196,7 +201,10 @@ void print_config(codec_config_t *config) {
             printf("sparsification:\t%f\n", config->residual_cr);
             break;
         case MAX_ERROR:
-            printf("max error:\t%f\n", config->max_error);
+            printf("max error:\t%f\n", config->error);
+            break;
+        case RELATIVE_ERROR:
+            printf("relative error:\t%f\n", config->error);
             break;
         case QUANTILE:
             printf("quantile:\t%f\n", config->quantile);
@@ -206,6 +214,21 @@ void print_config(codec_config_t *config) {
 
 void spiht_encode(float *buffer, size_t height, size_t width, float bit_rate, void **out_buffer, size_t *out_size);
 void spiht_decode(void *buffer, size_t size, float *out_buffer);
+
+float get_max_error(residual_t error_type, float *data, float *decoded, float *residual, size_t tot_size) {
+    float cur_max_error = 0;
+    for (size_t i = 0; i < tot_size; ++i) {
+        float cur_error = fabsf(data[i] - decoded[i] - residual[i]);
+        if (error_type == RELATIVE_ERROR) {
+            cur_error /= fabsf(data[i]);
+        }
+        if (cur_error > cur_max_error) {
+            cur_max_error = cur_error;
+        }
+    }
+
+    return cur_max_error;
+}
 
 size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **out_buffer) {
     print_config(config);
@@ -272,7 +295,8 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
         } else if (config->residual_compression_type == SPARSIFICATION_FACTOR) {
             double q_ratio = 1. - (1. / config->residual_cr);
             quantile = zero_out_quantile(coeffs, coeffs_size, q_ratio);
-        } else if (config->residual_compression_type == MAX_ERROR) {
+        } else if (config->residual_compression_type == MAX_ERROR ||
+                config->residual_compression_type == RELATIVE_ERROR) {
             double *coeffs_copy = (double *) malloc(coeffs_size * sizeof(double));
             float residual_cr = 2000;
             float cur_max_error = 0;
@@ -282,19 +306,12 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 quantile = zero_out_quantile(coeffs_copy, coeffs_size, q_ratio);
                 wavelib_backward(residual, image_dims[0], image_dims[1], WAVELET_LEVELS, coeffs_copy);
 
-                cur_max_error = 0;
-                for (size_t i = 0; i < tot_size; ++i) {
-                    float cur_error = fabsf(data[i] - decoded[i] - residual[i]);
-                    if (cur_error > cur_max_error) {
-                        cur_max_error = cur_error;
-                    }
-                }
+                cur_max_error = get_max_error(config->residual_compression_type, data, decoded, residual, tot_size);
 
                 residual_cr /= sqrtf(2.f);
-            } while (cur_max_error > config->max_error && residual_cr >= 50);
-
-            if (cur_max_error > config->max_error) {
-                fprintf(stderr, "Could not reach error target of %f (%f instead).", config->max_error, cur_max_error);
+            } while (cur_max_error > config->error && residual_cr >= 50);
+            if (cur_max_error > config->error) {
+                fprintf(stderr, "Could not reach error target of %f (%f instead).", config->error, cur_max_error);
             }
             free(coeffs);
             coeffs = coeffs_copy;
@@ -382,7 +399,8 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     return out_size;
 }
 
-void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval, codec_data_buffer_t *codec_data_buffer) {
+void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
+        codec_data_buffer_t *codec_data_buffer) {
     codec_data_buffer_reset(codec_data_buffer);
 
     opj_stream_t *stream = opj_stream_default_create(OPJ_TRUE);
