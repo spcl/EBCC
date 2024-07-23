@@ -4,8 +4,7 @@
 #include <math.h>
 #include <time.h>
 
-#include <openjpeg.h>
-
+#include "openjpeg.h"
 #include "wavelet.h"
 #include "quantile.h"
 #include "zstd.h"

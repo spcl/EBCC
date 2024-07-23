@@ -7,3 +7,6 @@
 [submodule "src/zstd"]
 	path = src/zstd
 	url = https://github.com/facebook/zstd.git
+[submodule "src/hdf5"]
+	path = src/hdf5
+	url = https://github.com/HDFGroup/hdf5.git
