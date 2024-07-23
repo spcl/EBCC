@@ -1,12 +1,11 @@
 # How to install
 ```
-cd src
-# download and install dependency libraries (openjpeg and wavelib)
-# HDF5 and NetCDF4 library (with headers) have to be installed manually
-make setup
-# compile the HDF5 filter for compression
-make
-# the compiled filter is stored in `src/libh5z_j2k.so`
+git clone --recurse-submodules https://github.com/luigifusco/compression-filter.git
+mkdir compression-filter/src/build
+cd compression-filter/src/build
+cmake -DCMAKE_INSTALL_PREFIX=. ..
+make && make install
+# the compiled filter is stored in `src/build/lib/libh5z_j2k.so`
 ```
 
 # User guide

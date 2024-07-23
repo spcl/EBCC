@@ -1,6 +1,6 @@
 import os
 current_folder = os.path.dirname(os.path.realpath(__file__))
-os.environ["HDF5_PLUGIN_PATH"] = os.path.join(current_folder, 'src')
+os.environ["HDF5_PLUGIN_PATH"] = os.path.join(current_folder, 'src/build/lib')
 
 import h5py
 import numpy as np

@@ -1,6 +1,5 @@
 {
     "files.associations": {
-        "unistd.h": "c",
-        "zstd.h": "c"
+        "h5plextern.h": "c"
     }
 }
