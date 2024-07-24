@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "h5plextern.h": "c"
+        "h5plextern.h": "c",
+        "netcdf_aux.h": "c"
     }
 }

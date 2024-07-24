@@ -10,7 +10,7 @@ set(BUILD_THIRDPARTY True)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 
-add_library(h5z_j2k h5z_j2k.c)
+add_library(h5z_j2k SHARED h5z_j2k.c)
 
 add_subdirectory(zstd/build/cmake)
 add_subdirectory(wavelib/src)
