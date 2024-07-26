@@ -1,4 +1,9 @@
 __pycache__
 src/build
 src/share
-test.hdf5
+pyproject.toml
+data/test.hdf5
+data/test.pdf
+data/compressed.nc
+.devcontainer
+.vscode

@@ -10,13 +10,13 @@ matplotlib.use('Agg')
 from filter_wrapper import JP2SPWV_Filter
 
 try:
-    os.remove(f'{current_folder}/test.hdf5')
+    os.remove(f'data/test.hdf5')
 except:
     pass
 
-f = h5py.File(f'{current_folder}/test.hdf5', 'a')
+f = h5py.File(f'data/test.hdf5', 'a')
 
-data = np.load(f'{current_folder}/test_data.npy')
+data = np.load(f'data/test_data.npy')
 
 jp2spwv_filter = JP2SPWV_Filter(
     base_cr=100, # base compression ratio
@@ -44,9 +44,9 @@ fig, (ax1, ax2) = plt.subplots(1, 2, layout='constrained')
 ax1.imshow(data)
 ax2.imshow(uncompressed)
 
-fig.savefig(f'{current_folder}/test.pdf', bbox_inches='tight')
+fig.savefig(f'data/test.pdf', bbox_inches='tight')
 
-original_size = os.path.getsize(f'{current_folder}/test_data.npy')
-compressed_size = os.path.getsize(f'{current_folder}/test.hdf5')
+original_size = os.path.getsize(f'data/test_data.npy')
+compressed_size = os.path.getsize(f'data/test.hdf5')
 
 print(f'achieved compression ratio of {original_size/compressed_size}')
