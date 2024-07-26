@@ -230,8 +230,9 @@ float get_max_error(residual_t error_type, float *data, float *decoded, float *r
 }
 
 size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **out_buffer) {
+#ifdef DEBUG
     print_config(config);
-
+#endif
     codec_data_buffer_t codec_data_buffer;
     codec_data_buffer_init(&codec_data_buffer);
 
