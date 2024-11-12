@@ -214,13 +214,40 @@ void print_config(codec_config_t *config) {
 void spiht_encode(float *buffer, size_t height, size_t width, float bit_rate, void **out_buffer, size_t *out_size);
 void spiht_decode(void *buffer, size_t size, float *out_buffer);
 
+/*Value-Range Relative error*/
+float get_max_relative_error(float *data, float *decoded, float *residual, size_t tot_size) {
+    float cur_max_error = 0, max_data = data[0], min_data = data[0], data_range = 0;
+    assert(tot_size > 0);
+    for (size_t i = 1; i < tot_size; ++i) {
+        if (data[i] > max_data) {
+            max_data = data[i];
+        }
+        if (data[i] < min_data) {
+            min_data = data[i];
+        }
+    }
+    data_range = max_data - min_data;
+    for (size_t i = 0; i < tot_size; ++i) {
+        float cur_error = fabsf(data[i] - decoded[i] - residual[i]) / data_range;
+        if (cur_error > cur_max_error) {
+            cur_max_error = cur_error;
+        }
+    }
+    return cur_max_error;
+}
+
 float get_max_error(residual_t error_type, float *data, float *decoded, float *residual, size_t tot_size) {
     float cur_max_error = 0;
+    if (error_type == RELATIVE_ERROR) {
+        return get_max_relative_error(data, decoded, residual, tot_size);
+    }
     for (size_t i = 0; i < tot_size; ++i) {
         float cur_error = fabsf(data[i] - decoded[i] - residual[i]);
+        /* this is pointwise relative error
         if (error_type == RELATIVE_ERROR) {
             cur_error /= fabsf(data[i]);
         }
+        */
         if (cur_error > cur_max_error) {
             cur_max_error = cur_error;
         }

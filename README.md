@@ -17,7 +17,7 @@ The user can also enable a compression of the residual in order to improve accur
 1. `NONE`: there is no residual
 2. `SPARSIFICATION_FACTOR`: the residual is wavelet encoded and sparsified with the desired sparsification factor. The sparsification factor roughly corresponds to the compression ratio of the residual
 3. `MAX_ERROR`: the residual is wavelet encoded and sparsified. The sparsification factor is found through an iterative process that tries out several factors and selects the largest one that keeps the max error below the selected threshold
-4. `RELATIVE_ERROR`: same as MAX_ERROR, but using the relative error instead
+4. `RELATIVE_ERROR`: same as MAX_ERROR, but using the (data-range) relative error instead, rel_error = (x - ref) / (ref.max - ref.min)
 
 The input parameters depend on the chosen mode of operation. As HDF5 filters support integer parameters only, a translation from float and double types to integer representation is required. We provide a python wrapper `JP2SPWV_Filter` in `filter_wrapper.py` to simply the process. An example of how to use the filter using the python `h5py` library can be found in `test.py`
 

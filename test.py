@@ -23,7 +23,7 @@ jp2spwv_filter = JP2SPWV_Filter(
     height=data.shape[0],  # height of each 2D data chunk
     width=data.shape[1],  # width of each 2D data chunk
     data_dim=len(data.shape), # data dimension, required to specify the HDF5 chunk shape
-    residual_opt=("relative_error_target", 0.0019),# specify the relative error target to be 0.0019
+    residual_opt=("relative_error_target", 0.009),# specify the relative error target to be 0.0019
     filter_path=os.path.join(current_folder, 'src')) # directory to the compiled HDF5 filter plugin
     # other possible residual_opt can be
     # `("max_error_target", xxx)` : the max_error does not exceed the specified value
@@ -37,7 +37,8 @@ f['compressed'][:] = data
 uncompressed = f['compressed'][:]
 
 # check if error target is correctly enforced
-max_error = np.max(np.abs(data - uncompressed) / np.abs(data))
+#max_error = np.max(np.abs(data - uncompressed) / np.abs(data))
+max_error = np.max(np.abs(data - uncompressed)) / (np.max(data) - np.min(data))
 print('achieved max relative error:', max_error)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, layout='constrained')
