@@ -1,5 +1,5 @@
 # How to install
-These instructions assume HDF5 is installed on your system. It is typically available as `hdf5-devel` in package managers. Then:
+Install required packages: `hdf5-devel, libstdc++-static`. Then:
 ```
 git clone --recurse-submodules https://github.com/luigifusco/compression-filter.git
 mkdir compression-filter/src/build

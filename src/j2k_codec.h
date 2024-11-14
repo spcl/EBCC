@@ -10,6 +10,7 @@
 #include "zstd.h"
 #include <assert.h>
 #include <malloc.h>
+#include "spiht.h"
 
 #define MIN(x, y) ((x)<(y)?(x):(y))
 #define CEIL(x,y) (((x) + (y) - 1) / (y))
@@ -211,9 +212,6 @@ void print_config(codec_config_t *config) {
     }
 }
 
-void spiht_encode(float *buffer, size_t height, size_t width, float bit_rate, void **out_buffer, size_t *out_size);
-void spiht_decode(void *buffer, size_t size, float *out_buffer);
-
 float get_data_range(const float *data, const size_t tot_size) {
     float max_data = data[0], min_data = data[0];
     for (size_t i = 1; i < tot_size; ++i) {
@@ -270,9 +268,11 @@ double get_error_target_quantile(const float *data, const float *decoded, const 
     return 1. -  ((double) n / tot_size);
 }
 
+#define STOP_CR 50
+
 void sparsify_coefficients(const double *coeffs, double *coeffs_copy, const size_t coeffs_size, float *residual, const size_t image_dims[2], 
                            const float *data, const float *decoded, const codec_config_t *config, const size_t tot_size) {
-    float residual_cr = 2000, stop_cr = 50; /*50*/
+    float residual_cr = 2000; /*50*/
     float cur_max_error = 0, best_max_error = 0;
     double quantile, data_range = 1.0, *coeffs_best;
 
@@ -288,7 +288,7 @@ void sparsify_coefficients(const double *coeffs, double *coeffs_copy, const size
     }
     best_max_error = cur_max_error;
 
-    while (cur_max_error > config->error && residual_cr >= stop_cr) {
+    while (cur_max_error > config->error && residual_cr >= STOP_CR) {
         memcpy(coeffs_copy, coeffs, coeffs_size * sizeof(double));
         double q_ratio = 1. - (1. / residual_cr);
         quantile = zero_out_quantile(coeffs_copy, coeffs_size, q_ratio);
@@ -368,12 +368,11 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
     size_t compressed_size = 0;
     uint8_t *compressed_coefficients = NULL;
-
-    double coeffs_min = 0, coeffs_max = 0;
-    double *coeffs = NULL;
-    size_t coeffs_size = 0;
-    size_t coo_size = 0;
-    double quantile = config->quantile, base_quantile_target = 1., eps=1e-8;
+    uint8_t *coeffs_buf = NULL;
+    float residual_maxval;
+    size_t coeffs_size = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
+    double trunc_hi, trunc_lo;
+    double quantile = config->quantile, base_quantile_target = 1-1e-6, eps=1e-8;
     if (config->residual_compression_type != NONE) {
         // decode back the image
         float *residual = (float *) malloc(tot_size * sizeof(float));
@@ -385,16 +384,16 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             residual[i] = data[i] - decoded[i];
         }
 
-        wavelib_forward(residual, image_dims[0], image_dims[1], WAVELET_LEVELS, &coeffs, &coeffs_size);
+        spiht_encode(residual, image_dims[0], image_dims[1], &coeffs_buf, &coeffs_size, WAVELET_LEVELS, &residual_maxval);
+        spiht_destroy_buffer(coeffs_buf);
 
         if (config->residual_compression_type == QUANTILE) {
-            zero_out_function(coeffs, coeffs_size, quantile);
+            assert(0); /* Deprecated */
         } else if (config->residual_compression_type == SPARSIFICATION_FACTOR) {
             double q_ratio = 1. - (1. / config->residual_cr);
-            quantile = zero_out_quantile(coeffs, coeffs_size, q_ratio);
+            coeffs_trunc_bits = coeffs_size * 8 - (size_t) ((double)coeffs_size / config->residual_cr * 8 );
         } else if (config->residual_compression_type == MAX_ERROR ||
                 config->residual_compression_type == RELATIVE_ERROR) {
-            double *coeffs_copy = (double *) malloc(coeffs_size * sizeof(double));
             double error_target_quantile, error_target_quantile_prev = 0;
             float error_target = config->error, current_cr = config->base_cr, cr_lo, cr_hi;
             if (config->residual_compression_type == RELATIVE_ERROR) {
@@ -422,7 +421,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             error_target_quantile = error_target_quantile_prev;
 
             assert(cr_lo <= cr_hi);
-            while (fabs(error_target_quantile - base_quantile_target) > eps || cr_hi - cr_lo > 1.) {
+            while (fabs(error_target_quantile - base_quantile_target) > eps && cr_hi - cr_lo > 1.) {
                 current_cr = (cr_lo + cr_hi) / 2;
                 error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
 #ifdef DEBUG
@@ -437,61 +436,40 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             for (size_t i = 0; i < tot_size; ++i) {
                 residual[i] = data[i] - decoded[i];
             }
-            wavelib_forward(residual, image_dims[0], image_dims[1], WAVELET_LEVELS, &coeffs, &coeffs_size);
-            sparsify_coefficients(coeffs, coeffs_copy, coeffs_size, residual, image_dims, data, decoded, config, tot_size);
-            free(coeffs);
-            coeffs = coeffs_copy;
+            spiht_encode(residual, image_dims[0], image_dims[1], &coeffs_buf, &coeffs_size, WAVELET_LEVELS, &residual_maxval);
+            trunc_hi = (double) coeffs_size * 8;
+            trunc_lo = 0;
+            coeffs_trunc_bits = (size_t) trunc_lo;
+            float cur_max_error = residual_maxval;
+            while (cur_max_error > error_target && trunc_hi - trunc_lo > 8) {
+                coeffs_trunc_bits = ((size_t) ceill((trunc_hi + trunc_lo) / 2 / 8)) * 8; /* ceil to bytes*/
+                spiht_decode(coeffs_buf, coeffs_size, residual, image_dims[0], image_dims[1], coeffs_trunc_bits, residual_maxval);
+                cur_max_error = get_max_error(data, decoded, residual, tot_size);
+                if (cur_max_error > error_target) {
+                    trunc_lo = coeffs_trunc_bits;
+                } else {
+                    trunc_hi = coeffs_trunc_bits;
+                }
+#if DEBUG
+                printf("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f\n", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error);
+#endif
+            }
+            
         }
 
         free(scaled_data);
 
-        size_t zero_count = 0;
-        for (size_t i = 0; i < coeffs_size; ++i) {
-            if (coeffs[i] == 0) {
-                zero_count++;
-            }
-        }
+        coeffs_size = coeffs_trunc_bits / 8;
+        if (coeffs_size <= 16) coeffs_size = 0;
 
-        coo_size = coeffs_size - zero_count;
-        size_t coo_allocated_size = coo_size + (coeffs_size / (uint16_t)-1) + 1;
-        coo_t *coo = (coo_t *) malloc(coo_allocated_size * sizeof(coo_t));
-
-        // find min and max wavelet coefficients
-        coeffs_min = coeffs_max = coeffs[0];
-        for (size_t i = 1; i < coeffs_size; ++i) {
-            if (coeffs[i] < coeffs_min) {
-                coeffs_min = coeffs[i];
-            } else if (coeffs[i] > coeffs_max) {
-                coeffs_max = coeffs[i];
-            }
-        }
-
-        size_t last = 0;
-        size_t coo_iter = 0;
-        for (size_t i = 0; i < coeffs_size; ++i) {
-            double cur = coeffs[i];
-            if (cur != 0 || i - last == (uint16_t)-1) {
-                coo[coo_iter].c = i - last;
-                assert(coo[coo_iter].c != 0 || i == 0);
-                coo[coo_iter].v = ((cur - coeffs_min) / (coeffs_max - coeffs_min)) * (coo_v_t)-1;
-                last = i;
-                coo_iter++;
-            }
-        }
-        assert(coo_iter <= coo_allocated_size);
-        coo_size = coo_iter;
-
-        
-
-        compressed_size = ZSTD_compressBound(coo_size * sizeof(coo_t));
+        compressed_size = ZSTD_compressBound(coeffs_size * sizeof(uint8_t));
         compressed_coefficients = (uint8_t *) malloc(compressed_size);
-        compressed_size = ZSTD_compress(compressed_coefficients, compressed_size, coo, coo_size * sizeof(coo_t), 22);
+        compressed_size = ZSTD_compress(compressed_coefficients, compressed_size, coeffs_buf, coeffs_size * sizeof(uint8_t), 22);
 #ifdef DEBUG
-        printf("coeffs_size: %lu, coo_size: %lu, compressed_size: %lu, jp2_length: %lu\n", coeffs_size, coo_size, compressed_size, codec_data_buffer.length);
+        printf("coeffs_size: %lu, compressed_size: %lu, jp2_length: %lu\n", coeffs_size, compressed_size, codec_data_buffer.length);
 #endif
 
-        free(coo);
-        free(coeffs);
+        spiht_destroy_buffer(coeffs_buf);
         free(residual);
         free(decoded);
     }
@@ -499,9 +477,9 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     size_t out_size =
             2 * sizeof(float) /* minval and maxval */ +
             sizeof(size_t) + /* coeffs size */
-            2 * sizeof(double) /* coeffs_min and coeffs_max */ +
-            sizeof(size_t) /* coo_size */ +
-            sizeof(size_t) + compressed_size + codec_data_buffer.length;
+            sizeof(float) /* residual_maxval */ +
+            sizeof(size_t) /* compressed_size */ + 
+            compressed_size + codec_data_buffer.length;
     *out_buffer = (uint8_t *) malloc(out_size);
 
     uint8_t *iter = *out_buffer;
@@ -511,12 +489,8 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     iter += sizeof(float);
     memcpy(iter, &coeffs_size, sizeof(size_t));
     iter += sizeof(size_t);
-    memcpy(iter, &coeffs_min, sizeof(double));
-    iter += sizeof(double);
-    memcpy(iter, &coeffs_max, sizeof(double));
-    iter += sizeof(double);
-    memcpy(iter, &coo_size, sizeof(size_t));
-    iter += sizeof(size_t);
+    memcpy(iter, &residual_maxval, sizeof(float));
+    iter += sizeof(float);
     memcpy(iter, &compressed_size, sizeof(size_t));
     iter += sizeof(size_t);
     memcpy(iter, compressed_coefficients, compressed_size);
@@ -525,7 +499,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
     assert(iter - *out_buffer == out_size - codec_data_buffer.length);
 
-    free(compressed_coefficients);
+    if (compressed_coefficients) free(compressed_coefficients);
 
     codec_data_buffer_destroy(&codec_data_buffer);
 
@@ -588,12 +562,8 @@ size_t decode_climate_variable(uint8_t *data, size_t data_size, float **out_buff
     iter += sizeof(float);
     size_t coeffs_size = *((size_t *) iter);
     iter += sizeof(size_t);
-    double coeffs_min = *((double *) iter);
-    iter += sizeof(double);
-    double coeffs_max = *((double *) iter);
-    iter += sizeof(double);
-    size_t coo_size = *((size_t *) iter);
-    iter += sizeof(size_t);
+    float residual_maxval = *((float *) iter);
+    iter += sizeof(float);
     size_t compressed_coefficient_size = *((size_t *) iter);
     iter += sizeof(size_t);
     uint8_t *coefficient_data = iter;
@@ -610,20 +580,12 @@ size_t decode_climate_variable(uint8_t *data, size_t data_size, float **out_buff
     size_t tot_size = height * width;
 
     if (compressed_coefficient_size > 0) {
-        coo_t *coo = (coo_t *) malloc(coo_size * sizeof(coo_t));
-        double *coeffs = (double *) calloc(coeffs_size, sizeof(double));
+        uint8_t *coeffs = (uint8_t *) calloc(coeffs_size, sizeof(uint8_t));
         float *residual = (float *) calloc(tot_size, sizeof(float));
-        ZSTD_decompress(coo, coo_size * sizeof(coo_t), coefficient_data, compressed_coefficient_size);
+        ZSTD_decompress(coeffs, coeffs_size * sizeof(uint8_t), coefficient_data, compressed_coefficient_size);
 
-        double *coeffs_iter = coeffs;
-        for (size_t i = 0; i < coo_size; ++i) {
-            coeffs_iter += coo[i].c;
-            assert(coo[i].c != 0 || i == 0);
-            double cur = (((double) coo[i].v / (coo_v_t)-1) * (coeffs_max - coeffs_min)) + coeffs_min;
-            *coeffs_iter = cur;
-        }
 
-        wavelib_backward(residual, height, width, WAVELET_LEVELS, coeffs);
+        spiht_decode(coeffs, coeffs_size, residual, height, width, coeffs_size * 8, residual_maxval);
 
         for (size_t i = 0; i < tot_size; ++i) {
             (*out_buffer)[i] += residual[i];
@@ -631,7 +593,6 @@ size_t decode_climate_variable(uint8_t *data, size_t data_size, float **out_buff
 
         free(coeffs);
         free(residual);
-        free(coo);
     }
 
     return tot_size;
