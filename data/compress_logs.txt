@@ -1,0 +1,646 @@
+{'chunks': (1, 1, 721, 1440), 'compression': 308, 'compression_opts': (721, 1440, 1106247680, 2, 1092616192)}
+float64
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999988, jp2_length: 69196
+current_cr: 45.000000, error_target_quantile: 1.000000, jp2_length: 92173
+current_cr: 52.500000, error_target_quantile: 0.999999, jp2_length: 78992
+current_cr: 56.250000, error_target_quantile: 0.999999, jp2_length: 73502
+current_cr: 58.125000, error_target_quantile: 0.999999, jp2_length: 71246
+current_cr: 59.062500, error_target_quantile: 0.999993, jp2_length: 70267
+trunc_lo: 0.0, trunc_hi: 6986504.0, coeffs_trunc_bytes: 0, cur_max_error: 12.625000, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3493256.0, coeffs_trunc_bytes: 436657, cur_max_error: 3.017892, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1746632.0, coeffs_trunc_bytes: 218329, cur_max_error: 6.303431, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 873320.0, coeffs_trunc_bytes: 109165, cur_max_error: 7.210539, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 436664.0, coeffs_trunc_bytes: 54583, cur_max_error: 8.702818, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 218336.0, coeffs_trunc_bytes: 27292, cur_max_error: 9.078309, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 109168.0, coeffs_trunc_bytes: 13646, cur_max_error: 9.327328, error_target: 10.000000
+trunc_lo: 54584.0, trunc_hi: 109168.0, coeffs_trunc_bytes: 6823, cur_max_error: 12.391176, error_target: 10.000000
+trunc_lo: 54584.0, trunc_hi: 81880.0, coeffs_trunc_bytes: 10235, cur_max_error: 9.421201, error_target: 10.000000
+trunc_lo: 68232.0, trunc_hi: 81880.0, coeffs_trunc_bytes: 8529, cur_max_error: 12.297304, error_target: 10.000000
+trunc_lo: 68232.0, trunc_hi: 75056.0, coeffs_trunc_bytes: 9382, cur_max_error: 9.421201, error_target: 10.000000
+trunc_lo: 68232.0, trunc_hi: 71648.0, coeffs_trunc_bytes: 8956, cur_max_error: 9.421201, error_target: 10.000000
+trunc_lo: 69944.0, trunc_hi: 71648.0, coeffs_trunc_bytes: 8743, cur_max_error: 12.297304, error_target: 10.000000
+trunc_lo: 70800.0, trunc_hi: 71648.0, coeffs_trunc_bytes: 8850, cur_max_error: 10.735416, error_target: 10.000000
+trunc_lo: 70800.0, trunc_hi: 71224.0, coeffs_trunc_bytes: 8903, cur_max_error: 9.421201, error_target: 10.000000
+trunc_lo: 71016.0, trunc_hi: 71224.0, coeffs_trunc_bytes: 8877, cur_max_error: 10.327451, error_target: 10.000000
+coeffs_size: 8903, compressed_size: 1845, jp2_length: 70267
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 1.000000, jp2_length: 69177
+cr_hi: 120.000000, error_target_quantile: 0.999639, jp2_length: 34591
+current_cr: 75.000000, error_target_quantile: 0.999998, jp2_length: 55307
+current_cr: 97.500000, error_target_quantile: 0.999921, jp2_length: 42589
+current_cr: 86.250000, error_target_quantile: 0.999990, jp2_length: 48100
+current_cr: 91.875000, error_target_quantile: 0.999980, jp2_length: 45078
+current_cr: 89.062500, error_target_quantile: 0.999985, jp2_length: 46555
+current_cr: 87.656250, error_target_quantile: 0.999987, jp2_length: 47372
+current_cr: 86.953125, error_target_quantile: 0.999989, jp2_length: 47647
+trunc_lo: 0.0, trunc_hi: 6928480.0, coeffs_trunc_bytes: 0, cur_max_error: 12.593750, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3464240.0, coeffs_trunc_bytes: 433030, cur_max_error: 2.592648, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1732120.0, coeffs_trunc_bytes: 216515, cur_max_error: 5.886091, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 866064.0, coeffs_trunc_bytes: 108258, cur_max_error: 6.561826, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 433032.0, coeffs_trunc_bytes: 54129, cur_max_error: 8.690441, error_target: 10.000000
+trunc_lo: 216520.0, trunc_hi: 433032.0, coeffs_trunc_bytes: 27065, cur_max_error: 10.032169, error_target: 10.000000
+trunc_lo: 216520.0, trunc_hi: 324776.0, coeffs_trunc_bytes: 40597, cur_max_error: 8.593444, error_target: 10.000000
+trunc_lo: 216520.0, trunc_hi: 270648.0, coeffs_trunc_bytes: 33831, cur_max_error: 8.593444, error_target: 10.000000
+trunc_lo: 216520.0, trunc_hi: 243584.0, coeffs_trunc_bytes: 30448, cur_max_error: 8.593444, error_target: 10.000000
+trunc_lo: 216520.0, trunc_hi: 230056.0, coeffs_trunc_bytes: 28757, cur_max_error: 9.838175, error_target: 10.000000
+trunc_lo: 216520.0, trunc_hi: 223288.0, coeffs_trunc_bytes: 27911, cur_max_error: 9.838175, error_target: 10.000000
+trunc_lo: 216520.0, trunc_hi: 219904.0, coeffs_trunc_bytes: 27488, cur_max_error: 9.838175, error_target: 10.000000
+trunc_lo: 216520.0, trunc_hi: 218216.0, coeffs_trunc_bytes: 27277, cur_max_error: 9.838175, error_target: 10.000000
+trunc_lo: 216520.0, trunc_hi: 217368.0, coeffs_trunc_bytes: 27171, cur_max_error: 9.838175, error_target: 10.000000
+trunc_lo: 216944.0, trunc_hi: 217368.0, coeffs_trunc_bytes: 27118, cur_max_error: 10.032169, error_target: 10.000000
+trunc_lo: 216944.0, trunc_hi: 217160.0, coeffs_trunc_bytes: 27145, cur_max_error: 9.838175, error_target: 10.000000
+coeffs_size: 27145, compressed_size: 19311, jp2_length: 47647
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999999, jp2_length: 69182
+cr_hi: 120.000000, error_target_quantile: 0.998922, jp2_length: 34619
+current_cr: 75.000000, error_target_quantile: 0.999981, jp2_length: 55381
+current_cr: 52.500000, error_target_quantile: 1.000000, jp2_length: 78961
+current_cr: 63.750000, error_target_quantile: 0.999993, jp2_length: 65150
+current_cr: 69.375000, error_target_quantile: 0.999988, jp2_length: 59617
+current_cr: 66.562500, error_target_quantile: 0.999989, jp2_length: 62386
+current_cr: 65.156250, error_target_quantile: 0.999991, jp2_length: 63697
+current_cr: 65.859375, error_target_quantile: 0.999991, jp2_length: 63070
+trunc_lo: 0.0, trunc_hi: 7085728.0, coeffs_trunc_bytes: 0, cur_max_error: 11.515625, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3542864.0, coeffs_trunc_bytes: 442858, cur_max_error: 2.915687, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1771432.0, coeffs_trunc_bytes: 221429, cur_max_error: 5.396139, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 885720.0, coeffs_trunc_bytes: 110715, cur_max_error: 6.618812, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 442864.0, coeffs_trunc_bytes: 55358, cur_max_error: 9.216115, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 221432.0, coeffs_trunc_bytes: 27679, cur_max_error: 9.216115, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 110720.0, coeffs_trunc_bytes: 13840, cur_max_error: 9.830760, error_target: 10.000000
+trunc_lo: 55360.0, trunc_hi: 110720.0, coeffs_trunc_bytes: 6920, cur_max_error: 11.414828, error_target: 10.000000
+trunc_lo: 83040.0, trunc_hi: 110720.0, coeffs_trunc_bytes: 10380, cur_max_error: 11.414828, error_target: 10.000000
+trunc_lo: 83040.0, trunc_hi: 96880.0, coeffs_trunc_bytes: 12110, cur_max_error: 9.830760, error_target: 10.000000
+trunc_lo: 89960.0, trunc_hi: 96880.0, coeffs_trunc_bytes: 11245, cur_max_error: 11.414828, error_target: 10.000000
+trunc_lo: 89960.0, trunc_hi: 93424.0, coeffs_trunc_bytes: 11678, cur_max_error: 9.871691, error_target: 10.000000
+trunc_lo: 91696.0, trunc_hi: 93424.0, coeffs_trunc_bytes: 11462, cur_max_error: 11.414828, error_target: 10.000000
+trunc_lo: 92560.0, trunc_hi: 93424.0, coeffs_trunc_bytes: 11570, cur_max_error: 11.414828, error_target: 10.000000
+trunc_lo: 92992.0, trunc_hi: 93424.0, coeffs_trunc_bytes: 11624, cur_max_error: 11.414828, error_target: 10.000000
+trunc_lo: 92992.0, trunc_hi: 93208.0, coeffs_trunc_bytes: 11651, cur_max_error: 9.830760, error_target: 10.000000
+coeffs_size: 11651, compressed_size: 4260, jp2_length: 63070
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999990, jp2_length: 69145
+cr_hi: 120.000000, error_target_quantile: 0.998114, jp2_length: 34598
+current_cr: 75.000000, error_target_quantile: 0.999953, jp2_length: 55384
+current_cr: 52.500000, error_target_quantile: 1.000000, jp2_length: 79114
+current_cr: 63.750000, error_target_quantile: 0.999988, jp2_length: 65133
+current_cr: 58.125000, error_target_quantile: 0.999995, jp2_length: 71424
+current_cr: 60.937500, error_target_quantile: 0.999990, jp2_length: 68070
+current_cr: 62.343750, error_target_quantile: 0.999988, jp2_length: 66581
+current_cr: 61.640625, error_target_quantile: 0.999987, jp2_length: 67325
+trunc_lo: 0.0, trunc_hi: 6852496.0, coeffs_trunc_bytes: 0, cur_max_error: 13.835938, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3426248.0, coeffs_trunc_bytes: 428281, cur_max_error: 2.473620, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1713128.0, coeffs_trunc_bytes: 214141, cur_max_error: 5.680697, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 856568.0, coeffs_trunc_bytes: 107071, cur_max_error: 7.995956, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 428288.0, coeffs_trunc_bytes: 53536, cur_max_error: 9.935110, error_target: 10.000000
+trunc_lo: 214144.0, trunc_hi: 428288.0, coeffs_trunc_bytes: 26768, cur_max_error: 11.050276, error_target: 10.000000
+trunc_lo: 321216.0, trunc_hi: 428288.0, coeffs_trunc_bytes: 40152, cur_max_error: 11.253034, error_target: 10.000000
+trunc_lo: 374752.0, trunc_hi: 428288.0, coeffs_trunc_bytes: 46844, cur_max_error: 11.253034, error_target: 10.000000
+trunc_lo: 374752.0, trunc_hi: 401520.0, coeffs_trunc_bytes: 50190, cur_max_error: 9.935110, error_target: 10.000000
+trunc_lo: 388136.0, trunc_hi: 401520.0, coeffs_trunc_bytes: 48517, cur_max_error: 11.253034, error_target: 10.000000
+trunc_lo: 388136.0, trunc_hi: 394832.0, coeffs_trunc_bytes: 49354, cur_max_error: 9.935110, error_target: 10.000000
+trunc_lo: 391488.0, trunc_hi: 394832.0, coeffs_trunc_bytes: 48936, cur_max_error: 11.253034, error_target: 10.000000
+trunc_lo: 393160.0, trunc_hi: 394832.0, coeffs_trunc_bytes: 49145, cur_max_error: 11.253034, error_target: 10.000000
+trunc_lo: 393160.0, trunc_hi: 394000.0, coeffs_trunc_bytes: 49250, cur_max_error: 9.935110, error_target: 10.000000
+trunc_lo: 393584.0, trunc_hi: 394000.0, coeffs_trunc_bytes: 49198, cur_max_error: 11.253034, error_target: 10.000000
+trunc_lo: 393792.0, trunc_hi: 394000.0, coeffs_trunc_bytes: 49224, cur_max_error: 11.253034, error_target: 10.000000
+coeffs_size: 49250, compressed_size: 33686, jp2_length: 67325
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999998, jp2_length: 69217
+cr_hi: 120.000000, error_target_quantile: 0.997749, jp2_length: 34550
+current_cr: 75.000000, error_target_quantile: 0.999912, jp2_length: 55239
+current_cr: 52.500000, error_target_quantile: 1.000000, jp2_length: 79065
+current_cr: 63.750000, error_target_quantile: 0.999995, jp2_length: 65100
+current_cr: 69.375000, error_target_quantile: 0.999950, jp2_length: 59879
+current_cr: 66.562500, error_target_quantile: 0.999991, jp2_length: 62296
+current_cr: 67.968750, error_target_quantile: 0.999977, jp2_length: 61080
+current_cr: 67.265625, error_target_quantile: 0.999985, jp2_length: 61727
+trunc_lo: 0.0, trunc_hi: 7001760.0, coeffs_trunc_bytes: 0, cur_max_error: 12.921875, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3500880.0, coeffs_trunc_bytes: 437610, cur_max_error: 3.015165, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1750440.0, coeffs_trunc_bytes: 218805, cur_max_error: 5.810571, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 875224.0, coeffs_trunc_bytes: 109403, cur_max_error: 6.968382, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 437616.0, coeffs_trunc_bytes: 54702, cur_max_error: 9.638879, error_target: 10.000000
+trunc_lo: 218808.0, trunc_hi: 437616.0, coeffs_trunc_bytes: 27351, cur_max_error: 10.024633, error_target: 10.000000
+trunc_lo: 218808.0, trunc_hi: 328216.0, coeffs_trunc_bytes: 41027, cur_max_error: 9.261305, error_target: 10.000000
+trunc_lo: 218808.0, trunc_hi: 273512.0, coeffs_trunc_bytes: 34189, cur_max_error: 9.261305, error_target: 10.000000
+trunc_lo: 218808.0, trunc_hi: 246160.0, coeffs_trunc_bytes: 30770, cur_max_error: 9.261305, error_target: 10.000000
+trunc_lo: 218808.0, trunc_hi: 232488.0, coeffs_trunc_bytes: 29061, cur_max_error: 9.261305, error_target: 10.000000
+trunc_lo: 225648.0, trunc_hi: 232488.0, coeffs_trunc_bytes: 28206, cur_max_error: 10.024633, error_target: 10.000000
+trunc_lo: 225648.0, trunc_hi: 229072.0, coeffs_trunc_bytes: 28634, cur_max_error: 9.261305, error_target: 10.000000
+trunc_lo: 227360.0, trunc_hi: 229072.0, coeffs_trunc_bytes: 28420, cur_max_error: 10.024633, error_target: 10.000000
+trunc_lo: 227360.0, trunc_hi: 228216.0, coeffs_trunc_bytes: 28527, cur_max_error: 9.243750, error_target: 10.000000
+trunc_lo: 227360.0, trunc_hi: 227792.0, coeffs_trunc_bytes: 28474, cur_max_error: 9.243750, error_target: 10.000000
+trunc_lo: 227360.0, trunc_hi: 227576.0, coeffs_trunc_bytes: 28447, cur_max_error: 9.243750, error_target: 10.000000
+coeffs_size: 28447, compressed_size: 19209, jp2_length: 61727
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999999, jp2_length: 69179
+cr_hi: 120.000000, error_target_quantile: 0.998185, jp2_length: 34596
+current_cr: 75.000000, error_target_quantile: 0.999952, jp2_length: 55136
+current_cr: 52.500000, error_target_quantile: 1.000000, jp2_length: 79080
+current_cr: 63.750000, error_target_quantile: 0.999994, jp2_length: 65137
+current_cr: 69.375000, error_target_quantile: 0.999976, jp2_length: 59768
+current_cr: 66.562500, error_target_quantile: 0.999987, jp2_length: 62388
+current_cr: 65.156250, error_target_quantile: 0.999988, jp2_length: 63690
+current_cr: 64.453125, error_target_quantile: 0.999989, jp2_length: 64236
+trunc_lo: 0.0, trunc_hi: 7067872.0, coeffs_trunc_bytes: 0, cur_max_error: 11.398438, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3533936.0, coeffs_trunc_bytes: 441742, cur_max_error: 2.722656, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1766968.0, coeffs_trunc_bytes: 220871, cur_max_error: 5.964063, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 883488.0, coeffs_trunc_bytes: 110436, cur_max_error: 7.282812, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 441744.0, coeffs_trunc_bytes: 55218, cur_max_error: 9.434375, error_target: 10.000000
+trunc_lo: 220872.0, trunc_hi: 441744.0, coeffs_trunc_bytes: 27609, cur_max_error: 10.043750, error_target: 10.000000
+trunc_lo: 220872.0, trunc_hi: 331312.0, coeffs_trunc_bytes: 41414, cur_max_error: 8.989062, error_target: 10.000000
+trunc_lo: 220872.0, trunc_hi: 276096.0, coeffs_trunc_bytes: 34512, cur_max_error: 8.989062, error_target: 10.000000
+trunc_lo: 220872.0, trunc_hi: 248488.0, coeffs_trunc_bytes: 31061, cur_max_error: 9.167188, error_target: 10.000000
+trunc_lo: 220872.0, trunc_hi: 234680.0, coeffs_trunc_bytes: 29335, cur_max_error: 8.810937, error_target: 10.000000
+trunc_lo: 227776.0, trunc_hi: 234680.0, coeffs_trunc_bytes: 28472, cur_max_error: 10.043750, error_target: 10.000000
+trunc_lo: 231232.0, trunc_hi: 234680.0, coeffs_trunc_bytes: 28904, cur_max_error: 10.043750, error_target: 10.000000
+trunc_lo: 232960.0, trunc_hi: 234680.0, coeffs_trunc_bytes: 29120, cur_max_error: 10.043750, error_target: 10.000000
+trunc_lo: 232960.0, trunc_hi: 233824.0, coeffs_trunc_bytes: 29228, cur_max_error: 8.810937, error_target: 10.000000
+trunc_lo: 233392.0, trunc_hi: 233824.0, coeffs_trunc_bytes: 29174, cur_max_error: 10.043750, error_target: 10.000000
+trunc_lo: 233392.0, trunc_hi: 233608.0, coeffs_trunc_bytes: 29201, cur_max_error: 8.810937, error_target: 10.000000
+coeffs_size: 29201, compressed_size: 18516, jp2_length: 64236
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999994, jp2_length: 69142
+cr_hi: 120.000000, error_target_quantile: 0.998804, jp2_length: 34564
+current_cr: 75.000000, error_target_quantile: 0.999947, jp2_length: 55381
+current_cr: 52.500000, error_target_quantile: 1.000000, jp2_length: 79097
+current_cr: 63.750000, error_target_quantile: 0.999991, jp2_length: 65135
+current_cr: 69.375000, error_target_quantile: 0.999990, jp2_length: 59858
+current_cr: 72.187500, error_target_quantile: 0.999981, jp2_length: 57484
+current_cr: 70.781250, error_target_quantile: 0.999990, jp2_length: 58638
+current_cr: 71.484375, error_target_quantile: 0.999984, jp2_length: 57954
+trunc_lo: 0.0, trunc_hi: 6824304.0, coeffs_trunc_bytes: 0, cur_max_error: 13.320312, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3412152.0, coeffs_trunc_bytes: 426519, cur_max_error: 3.359606, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1706080.0, coeffs_trunc_bytes: 213260, cur_max_error: 5.618398, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 853040.0, coeffs_trunc_bytes: 106630, cur_max_error: 6.955715, error_target: 10.000000
+trunc_lo: 426520.0, trunc_hi: 853040.0, coeffs_trunc_bytes: 53315, cur_max_error: 10.026638, error_target: 10.000000
+trunc_lo: 426520.0, trunc_hi: 639784.0, coeffs_trunc_bytes: 79973, cur_max_error: 8.707689, error_target: 10.000000
+trunc_lo: 426520.0, trunc_hi: 533152.0, coeffs_trunc_bytes: 66644, cur_max_error: 9.063740, error_target: 10.000000
+trunc_lo: 426520.0, trunc_hi: 479840.0, coeffs_trunc_bytes: 59980, cur_max_error: 9.161872, error_target: 10.000000
+trunc_lo: 453184.0, trunc_hi: 479840.0, coeffs_trunc_bytes: 56648, cur_max_error: 10.026638, error_target: 10.000000
+trunc_lo: 466512.0, trunc_hi: 479840.0, coeffs_trunc_bytes: 58314, cur_max_error: 10.026638, error_target: 10.000000
+trunc_lo: 466512.0, trunc_hi: 473176.0, coeffs_trunc_bytes: 59147, cur_max_error: 9.161872, error_target: 10.000000
+trunc_lo: 469848.0, trunc_hi: 473176.0, coeffs_trunc_bytes: 58731, cur_max_error: 10.026638, error_target: 10.000000
+trunc_lo: 471512.0, trunc_hi: 473176.0, coeffs_trunc_bytes: 58939, cur_max_error: 10.026638, error_target: 10.000000
+trunc_lo: 471512.0, trunc_hi: 472344.0, coeffs_trunc_bytes: 59043, cur_max_error: 9.161872, error_target: 10.000000
+trunc_lo: 471512.0, trunc_hi: 471928.0, coeffs_trunc_bytes: 58991, cur_max_error: 9.161872, error_target: 10.000000
+trunc_lo: 471720.0, trunc_hi: 471928.0, coeffs_trunc_bytes: 58965, cur_max_error: 10.026638, error_target: 10.000000
+coeffs_size: 58991, compressed_size: 45652, jp2_length: 57954
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999999, jp2_length: 69121
+cr_hi: 120.000000, error_target_quantile: 0.998622, jp2_length: 34527
+current_cr: 75.000000, error_target_quantile: 0.999966, jp2_length: 55225
+current_cr: 52.500000, error_target_quantile: 0.999999, jp2_length: 79107
+current_cr: 63.750000, error_target_quantile: 0.999998, jp2_length: 65143
+current_cr: 69.375000, error_target_quantile: 0.999991, jp2_length: 59823
+current_cr: 72.187500, error_target_quantile: 0.999976, jp2_length: 57406
+current_cr: 70.781250, error_target_quantile: 0.999979, jp2_length: 58669
+current_cr: 70.078125, error_target_quantile: 0.999981, jp2_length: 59128
+trunc_lo: 0.0, trunc_hi: 6964008.0, coeffs_trunc_bytes: 0, cur_max_error: 12.550781, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3482008.0, coeffs_trunc_bytes: 435251, cur_max_error: 3.117372, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1741008.0, coeffs_trunc_bytes: 217626, cur_max_error: 7.069164, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 870504.0, coeffs_trunc_bytes: 108813, cur_max_error: 7.282514, error_target: 10.000000
+trunc_lo: 435256.0, trunc_hi: 870504.0, coeffs_trunc_bytes: 54407, cur_max_error: 10.113604, error_target: 10.000000
+trunc_lo: 435256.0, trunc_hi: 652880.0, coeffs_trunc_bytes: 81610, cur_max_error: 8.466637, error_target: 10.000000
+trunc_lo: 544072.0, trunc_hi: 652880.0, coeffs_trunc_bytes: 68009, cur_max_error: 10.113604, error_target: 10.000000
+trunc_lo: 544072.0, trunc_hi: 598480.0, coeffs_trunc_bytes: 74810, cur_max_error: 8.589016, error_target: 10.000000
+trunc_lo: 571280.0, trunc_hi: 598480.0, coeffs_trunc_bytes: 71410, cur_max_error: 10.113604, error_target: 10.000000
+trunc_lo: 584880.0, trunc_hi: 598480.0, coeffs_trunc_bytes: 73110, cur_max_error: 10.113604, error_target: 10.000000
+trunc_lo: 591680.0, trunc_hi: 598480.0, coeffs_trunc_bytes: 73960, cur_max_error: 10.113604, error_target: 10.000000
+trunc_lo: 595080.0, trunc_hi: 598480.0, coeffs_trunc_bytes: 74385, cur_max_error: 10.113604, error_target: 10.000000
+trunc_lo: 595080.0, trunc_hi: 596784.0, coeffs_trunc_bytes: 74598, cur_max_error: 8.888281, error_target: 10.000000
+trunc_lo: 595080.0, trunc_hi: 595936.0, coeffs_trunc_bytes: 74492, cur_max_error: 8.888281, error_target: 10.000000
+trunc_lo: 595512.0, trunc_hi: 595936.0, coeffs_trunc_bytes: 74439, cur_max_error: 10.113604, error_target: 10.000000
+trunc_lo: 595512.0, trunc_hi: 595728.0, coeffs_trunc_bytes: 74466, cur_max_error: 8.888281, error_target: 10.000000
+coeffs_size: 74466, compressed_size: 60707, jp2_length: 59128
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999959, jp2_length: 69215
+current_cr: 45.000000, error_target_quantile: 1.000000, jp2_length: 92252
+current_cr: 52.500000, error_target_quantile: 0.999996, jp2_length: 79103
+current_cr: 56.250000, error_target_quantile: 0.999983, jp2_length: 73763
+current_cr: 54.375000, error_target_quantile: 0.999992, jp2_length: 76338
+current_cr: 55.312500, error_target_quantile: 0.999987, jp2_length: 75096
+trunc_lo: 0.0, trunc_hi: 7008176.0, coeffs_trunc_bytes: 0, cur_max_error: 12.125977, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3504088.0, coeffs_trunc_bytes: 438011, cur_max_error: 3.718424, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1752048.0, coeffs_trunc_bytes: 219006, cur_max_error: 6.262289, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 876024.0, coeffs_trunc_bytes: 109503, cur_max_error: 6.737622, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 438016.0, coeffs_trunc_bytes: 54752, cur_max_error: 9.856349, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 219008.0, coeffs_trunc_bytes: 27376, cur_max_error: 9.856349, error_target: 10.000000
+trunc_lo: 109504.0, trunc_hi: 219008.0, coeffs_trunc_bytes: 13688, cur_max_error: 11.076884, error_target: 10.000000
+trunc_lo: 164256.0, trunc_hi: 219008.0, coeffs_trunc_bytes: 20532, cur_max_error: 10.144465, error_target: 10.000000
+trunc_lo: 164256.0, trunc_hi: 191632.0, coeffs_trunc_bytes: 23954, cur_max_error: 9.956031, error_target: 10.000000
+trunc_lo: 164256.0, trunc_hi: 177944.0, coeffs_trunc_bytes: 22243, cur_max_error: 9.956031, error_target: 10.000000
+trunc_lo: 164256.0, trunc_hi: 171104.0, coeffs_trunc_bytes: 21388, cur_max_error: 9.956031, error_target: 10.000000
+trunc_lo: 167680.0, trunc_hi: 171104.0, coeffs_trunc_bytes: 20960, cur_max_error: 10.144465, error_target: 10.000000
+trunc_lo: 169392.0, trunc_hi: 171104.0, coeffs_trunc_bytes: 21174, cur_max_error: 10.144465, error_target: 10.000000
+trunc_lo: 170248.0, trunc_hi: 171104.0, coeffs_trunc_bytes: 21281, cur_max_error: 10.144465, error_target: 10.000000
+trunc_lo: 170248.0, trunc_hi: 170680.0, coeffs_trunc_bytes: 21335, cur_max_error: 9.956031, error_target: 10.000000
+trunc_lo: 170248.0, trunc_hi: 170464.0, coeffs_trunc_bytes: 21308, cur_max_error: 9.956031, error_target: 10.000000
+coeffs_size: 21308, compressed_size: 11704, jp2_length: 75096
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999483, jp2_length: 69161
+current_cr: 45.000000, error_target_quantile: 0.999995, jp2_length: 92265
+current_cr: 52.500000, error_target_quantile: 0.999925, jp2_length: 79053
+current_cr: 48.750000, error_target_quantile: 0.999974, jp2_length: 85061
+current_cr: 46.875000, error_target_quantile: 0.999991, jp2_length: 88582
+current_cr: 47.812500, error_target_quantile: 0.999978, jp2_length: 86832
+trunc_lo: 0.0, trunc_hi: 6970032.0, coeffs_trunc_bytes: 0, cur_max_error: 12.792480, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3485016.0, coeffs_trunc_bytes: 435627, cur_max_error: 2.945215, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1742512.0, coeffs_trunc_bytes: 217814, cur_max_error: 8.379103, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 871256.0, coeffs_trunc_bytes: 108907, cur_max_error: 8.181055, error_target: 10.000000
+trunc_lo: 435632.0, trunc_hi: 871256.0, coeffs_trunc_bytes: 54454, cur_max_error: 10.281640, error_target: 10.000000
+trunc_lo: 435632.0, trunc_hi: 653448.0, coeffs_trunc_bytes: 81681, cur_max_error: 8.676172, error_target: 10.000000
+trunc_lo: 435632.0, trunc_hi: 544544.0, coeffs_trunc_bytes: 68068, cur_max_error: 9.400293, error_target: 10.000000
+trunc_lo: 435632.0, trunc_hi: 490088.0, coeffs_trunc_bytes: 61261, cur_max_error: 9.400293, error_target: 10.000000
+trunc_lo: 435632.0, trunc_hi: 462864.0, coeffs_trunc_bytes: 57858, cur_max_error: 9.400293, error_target: 10.000000
+trunc_lo: 449248.0, trunc_hi: 462864.0, coeffs_trunc_bytes: 56156, cur_max_error: 10.281640, error_target: 10.000000
+trunc_lo: 456056.0, trunc_hi: 462864.0, coeffs_trunc_bytes: 57007, cur_max_error: 10.281640, error_target: 10.000000
+trunc_lo: 459464.0, trunc_hi: 462864.0, coeffs_trunc_bytes: 57433, cur_max_error: 10.281640, error_target: 10.000000
+trunc_lo: 461168.0, trunc_hi: 462864.0, coeffs_trunc_bytes: 57646, cur_max_error: 10.281640, error_target: 10.000000
+trunc_lo: 461168.0, trunc_hi: 462016.0, coeffs_trunc_bytes: 57752, cur_max_error: 9.400293, error_target: 10.000000
+trunc_lo: 461168.0, trunc_hi: 461592.0, coeffs_trunc_bytes: 57699, cur_max_error: 9.400293, error_target: 10.000000
+trunc_lo: 461384.0, trunc_hi: 461592.0, coeffs_trunc_bytes: 57673, cur_max_error: 10.281640, error_target: 10.000000
+coeffs_size: 57699, compressed_size: 42600, jp2_length: 86832
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.995582, jp2_length: 69139
+current_cr: 45.000000, error_target_quantile: 0.999599, jp2_length: 92273
+current_cr: 37.500000, error_target_quantile: 0.999977, jp2_length: 110514
+current_cr: 33.750000, error_target_quantile: 0.999998, jp2_length: 122862
+current_cr: 35.625000, error_target_quantile: 0.999996, jp2_length: 116457
+current_cr: 36.562500, error_target_quantile: 0.999986, jp2_length: 113539
+trunc_lo: 0.0, trunc_hi: 7045704.0, coeffs_trunc_bytes: 0, cur_max_error: 12.622925, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3522856.0, coeffs_trunc_bytes: 440357, cur_max_error: 3.647430, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1761432.0, coeffs_trunc_bytes: 220179, cur_max_error: 7.083549, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 880720.0, coeffs_trunc_bytes: 110090, cur_max_error: 7.383884, error_target: 10.000000
+trunc_lo: 440360.0, trunc_hi: 880720.0, coeffs_trunc_bytes: 55045, cur_max_error: 11.315563, error_target: 10.000000
+trunc_lo: 440360.0, trunc_hi: 660544.0, coeffs_trunc_bytes: 82568, cur_max_error: 9.489774, error_target: 10.000000
+trunc_lo: 550456.0, trunc_hi: 660544.0, coeffs_trunc_bytes: 68807, cur_max_error: 10.644300, error_target: 10.000000
+trunc_lo: 605504.0, trunc_hi: 660544.0, coeffs_trunc_bytes: 75688, cur_max_error: 10.644300, error_target: 10.000000
+trunc_lo: 633024.0, trunc_hi: 660544.0, coeffs_trunc_bytes: 79128, cur_max_error: 10.644300, error_target: 10.000000
+trunc_lo: 646784.0, trunc_hi: 660544.0, coeffs_trunc_bytes: 80848, cur_max_error: 10.091701, error_target: 10.000000
+trunc_lo: 646784.0, trunc_hi: 653664.0, coeffs_trunc_bytes: 81708, cur_max_error: 9.489774, error_target: 10.000000
+trunc_lo: 646784.0, trunc_hi: 650224.0, coeffs_trunc_bytes: 81278, cur_max_error: 9.489774, error_target: 10.000000
+trunc_lo: 648504.0, trunc_hi: 650224.0, coeffs_trunc_bytes: 81063, cur_max_error: 10.091701, error_target: 10.000000
+trunc_lo: 649368.0, trunc_hi: 650224.0, coeffs_trunc_bytes: 81171, cur_max_error: 10.091701, error_target: 10.000000
+trunc_lo: 649800.0, trunc_hi: 650224.0, coeffs_trunc_bytes: 81225, cur_max_error: 10.091701, error_target: 10.000000
+trunc_lo: 649800.0, trunc_hi: 650016.0, coeffs_trunc_bytes: 81252, cur_max_error: 9.904445, error_target: 10.000000
+coeffs_size: 81252, compressed_size: 64103, jp2_length: 113539
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999994, jp2_length: 69214
+cr_hi: 120.000000, error_target_quantile: 0.997856, jp2_length: 34623
+current_cr: 75.000000, error_target_quantile: 0.999963, jp2_length: 55229
+current_cr: 52.500000, error_target_quantile: 0.999998, jp2_length: 78856
+current_cr: 63.750000, error_target_quantile: 0.999986, jp2_length: 65010
+current_cr: 58.125000, error_target_quantile: 0.999998, jp2_length: 71336
+current_cr: 60.937500, error_target_quantile: 0.999989, jp2_length: 68151
+current_cr: 59.531250, error_target_quantile: 0.999994, jp2_length: 69764
+current_cr: 60.234375, error_target_quantile: 0.999990, jp2_length: 68862
+trunc_lo: 0.0, trunc_hi: 7065504.0, coeffs_trunc_bytes: 0, cur_max_error: 12.312500, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3532752.0, coeffs_trunc_bytes: 441594, cur_max_error: 2.830882, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1766376.0, coeffs_trunc_bytes: 220797, cur_max_error: 5.292647, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 883192.0, coeffs_trunc_bytes: 110399, cur_max_error: 7.119119, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 441600.0, coeffs_trunc_bytes: 55200, cur_max_error: 8.972795, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 220800.0, coeffs_trunc_bytes: 27600, cur_max_error: 9.591911, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 110400.0, coeffs_trunc_bytes: 13800, cur_max_error: 9.591911, error_target: 10.000000
+trunc_lo: 55200.0, trunc_hi: 110400.0, coeffs_trunc_bytes: 6900, cur_max_error: 12.060661, error_target: 10.000000
+trunc_lo: 82800.0, trunc_hi: 110400.0, coeffs_trunc_bytes: 10350, cur_max_error: 11.150000, error_target: 10.000000
+trunc_lo: 82800.0, trunc_hi: 96600.0, coeffs_trunc_bytes: 12075, cur_max_error: 9.591911, error_target: 10.000000
+trunc_lo: 82800.0, trunc_hi: 89704.0, coeffs_trunc_bytes: 11213, cur_max_error: 9.591911, error_target: 10.000000
+trunc_lo: 82800.0, trunc_hi: 86256.0, coeffs_trunc_bytes: 10782, cur_max_error: 9.591911, error_target: 10.000000
+trunc_lo: 82800.0, trunc_hi: 84528.0, coeffs_trunc_bytes: 10566, cur_max_error: 9.591911, error_target: 10.000000
+trunc_lo: 82800.0, trunc_hi: 83664.0, coeffs_trunc_bytes: 10458, cur_max_error: 9.591911, error_target: 10.000000
+trunc_lo: 83232.0, trunc_hi: 83664.0, coeffs_trunc_bytes: 10404, cur_max_error: 10.462868, error_target: 10.000000
+trunc_lo: 83232.0, trunc_hi: 83448.0, coeffs_trunc_bytes: 10431, cur_max_error: 9.591911, error_target: 10.000000
+coeffs_size: 10431, compressed_size: 3227, jp2_length: 68862
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 1.000000, jp2_length: 69225
+cr_hi: 120.000000, error_target_quantile: 0.999625, jp2_length: 34601
+current_cr: 75.000000, error_target_quantile: 0.999990, jp2_length: 55347
+current_cr: 97.500000, error_target_quantile: 0.999918, jp2_length: 42608
+current_cr: 86.250000, error_target_quantile: 0.999985, jp2_length: 48102
+current_cr: 80.625000, error_target_quantile: 0.999989, jp2_length: 51346
+current_cr: 77.812500, error_target_quantile: 0.999989, jp2_length: 53190
+current_cr: 76.406250, error_target_quantile: 0.999989, jp2_length: 54144
+current_cr: 75.703125, error_target_quantile: 0.999989, jp2_length: 54811
+trunc_lo: 0.0, trunc_hi: 6928320.0, coeffs_trunc_bytes: 0, cur_max_error: 12.703125, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3464160.0, coeffs_trunc_bytes: 433020, cur_max_error: 2.579963, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1732080.0, coeffs_trunc_bytes: 216510, cur_max_error: 7.181985, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 866040.0, coeffs_trunc_bytes: 108255, cur_max_error: 6.954963, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 433024.0, coeffs_trunc_bytes: 54128, cur_max_error: 9.583639, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 216512.0, coeffs_trunc_bytes: 27064, cur_max_error: 9.583639, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 108256.0, coeffs_trunc_bytes: 13532, cur_max_error: 9.710478, error_target: 10.000000
+trunc_lo: 54128.0, trunc_hi: 108256.0, coeffs_trunc_bytes: 6766, cur_max_error: 12.617647, error_target: 10.000000
+trunc_lo: 81192.0, trunc_hi: 108256.0, coeffs_trunc_bytes: 10149, cur_max_error: 11.757353, error_target: 10.000000
+trunc_lo: 81192.0, trunc_hi: 94728.0, coeffs_trunc_bytes: 11841, cur_max_error: 9.423713, error_target: 10.000000
+trunc_lo: 81192.0, trunc_hi: 87960.0, coeffs_trunc_bytes: 10995, cur_max_error: 9.812500, error_target: 10.000000
+trunc_lo: 84576.0, trunc_hi: 87960.0, coeffs_trunc_bytes: 10572, cur_max_error: 10.883272, error_target: 10.000000
+trunc_lo: 84576.0, trunc_hi: 86272.0, coeffs_trunc_bytes: 10784, cur_max_error: 9.812500, error_target: 10.000000
+trunc_lo: 84576.0, trunc_hi: 85424.0, coeffs_trunc_bytes: 10678, cur_max_error: 9.812500, error_target: 10.000000
+trunc_lo: 85000.0, trunc_hi: 85424.0, coeffs_trunc_bytes: 10625, cur_max_error: 10.883272, error_target: 10.000000
+trunc_lo: 85000.0, trunc_hi: 85216.0, coeffs_trunc_bytes: 10652, cur_max_error: 9.812500, error_target: 10.000000
+coeffs_size: 10652, compressed_size: 3484, jp2_length: 54811
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999999, jp2_length: 69188
+cr_hi: 120.000000, error_target_quantile: 0.998812, jp2_length: 34584
+current_cr: 75.000000, error_target_quantile: 0.999987, jp2_length: 55300
+current_cr: 52.500000, error_target_quantile: 0.999999, jp2_length: 78996
+current_cr: 63.750000, error_target_quantile: 0.999993, jp2_length: 65123
+current_cr: 69.375000, error_target_quantile: 0.999991, jp2_length: 59685
+current_cr: 72.187500, error_target_quantile: 0.999990, jp2_length: 57459
+current_cr: 73.593750, error_target_quantile: 0.999987, jp2_length: 56393
+current_cr: 72.890625, error_target_quantile: 0.999987, jp2_length: 56858
+trunc_lo: 0.0, trunc_hi: 6929544.0, coeffs_trunc_bytes: 0, cur_max_error: 12.515625, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3464776.0, coeffs_trunc_bytes: 433097, cur_max_error: 2.593751, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1732392.0, coeffs_trunc_bytes: 216549, cur_max_error: 5.644792, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 866200.0, coeffs_trunc_bytes: 108275, cur_max_error: 6.666667, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 433104.0, coeffs_trunc_bytes: 54138, cur_max_error: 9.497916, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 216552.0, coeffs_trunc_bytes: 27069, cur_max_error: 9.791667, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 108280.0, coeffs_trunc_bytes: 13535, cur_max_error: 9.820833, error_target: 10.000000
+trunc_lo: 54144.0, trunc_hi: 108280.0, coeffs_trunc_bytes: 6768, cur_max_error: 12.631250, error_target: 10.000000
+trunc_lo: 81216.0, trunc_hi: 108280.0, coeffs_trunc_bytes: 10152, cur_max_error: 12.631250, error_target: 10.000000
+trunc_lo: 94752.0, trunc_hi: 108280.0, coeffs_trunc_bytes: 11844, cur_max_error: 12.631250, error_target: 10.000000
+trunc_lo: 94752.0, trunc_hi: 101520.0, coeffs_trunc_bytes: 12690, cur_max_error: 9.820833, error_target: 10.000000
+trunc_lo: 94752.0, trunc_hi: 98136.0, coeffs_trunc_bytes: 12267, cur_max_error: 9.820833, error_target: 10.000000
+trunc_lo: 96448.0, trunc_hi: 98136.0, coeffs_trunc_bytes: 12056, cur_max_error: 11.195832, error_target: 10.000000
+trunc_lo: 97296.0, trunc_hi: 98136.0, coeffs_trunc_bytes: 12162, cur_max_error: 11.195832, error_target: 10.000000
+trunc_lo: 97720.0, trunc_hi: 98136.0, coeffs_trunc_bytes: 12215, cur_max_error: 11.195832, error_target: 10.000000
+trunc_lo: 97928.0, trunc_hi: 98136.0, coeffs_trunc_bytes: 12241, cur_max_error: 11.195832, error_target: 10.000000
+coeffs_size: 12267, compressed_size: 5255, jp2_length: 56858
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999994, jp2_length: 69114
+cr_hi: 120.000000, error_target_quantile: 0.998101, jp2_length: 34603
+current_cr: 75.000000, error_target_quantile: 0.999927, jp2_length: 55297
+current_cr: 52.500000, error_target_quantile: 0.999999, jp2_length: 78853
+current_cr: 63.750000, error_target_quantile: 0.999986, jp2_length: 64984
+current_cr: 58.125000, error_target_quantile: 0.999996, jp2_length: 71399
+current_cr: 60.937500, error_target_quantile: 0.999991, jp2_length: 68138
+current_cr: 62.343750, error_target_quantile: 0.999986, jp2_length: 66544
+current_cr: 61.640625, error_target_quantile: 0.999987, jp2_length: 67341
+trunc_lo: 0.0, trunc_hi: 7169376.0, coeffs_trunc_bytes: 0, cur_max_error: 10.656250, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3584688.0, coeffs_trunc_bytes: 448086, cur_max_error: 2.787316, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1792344.0, coeffs_trunc_bytes: 224043, cur_max_error: 5.592463, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 896176.0, coeffs_trunc_bytes: 112022, cur_max_error: 8.955177, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 448088.0, coeffs_trunc_bytes: 56011, cur_max_error: 8.204350, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 224048.0, coeffs_trunc_bytes: 28006, cur_max_error: 8.829105, error_target: 10.000000
+trunc_lo: 112024.0, trunc_hi: 224048.0, coeffs_trunc_bytes: 14003, cur_max_error: 10.908058, error_target: 10.000000
+trunc_lo: 112024.0, trunc_hi: 168040.0, coeffs_trunc_bytes: 21005, cur_max_error: 9.372303, error_target: 10.000000
+trunc_lo: 112024.0, trunc_hi: 140032.0, coeffs_trunc_bytes: 17504, cur_max_error: 9.263174, error_target: 10.000000
+trunc_lo: 126032.0, trunc_hi: 140032.0, coeffs_trunc_bytes: 15754, cur_max_error: 10.464308, error_target: 10.000000
+trunc_lo: 133032.0, trunc_hi: 140032.0, coeffs_trunc_bytes: 16629, cur_max_error: 10.464308, error_target: 10.000000
+trunc_lo: 133032.0, trunc_hi: 136536.0, coeffs_trunc_bytes: 17067, cur_max_error: 9.263174, error_target: 10.000000
+trunc_lo: 133032.0, trunc_hi: 134784.0, coeffs_trunc_bytes: 16848, cur_max_error: 9.263174, error_target: 10.000000
+trunc_lo: 133032.0, trunc_hi: 133912.0, coeffs_trunc_bytes: 16739, cur_max_error: 9.263174, error_target: 10.000000
+trunc_lo: 133472.0, trunc_hi: 133912.0, coeffs_trunc_bytes: 16684, cur_max_error: 10.464308, error_target: 10.000000
+trunc_lo: 133696.0, trunc_hi: 133912.0, coeffs_trunc_bytes: 16712, cur_max_error: 10.464308, error_target: 10.000000
+coeffs_size: 16739, compressed_size: 8790, jp2_length: 67341
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999995, jp2_length: 69198
+cr_hi: 120.000000, error_target_quantile: 0.997206, jp2_length: 34558
+current_cr: 75.000000, error_target_quantile: 0.999919, jp2_length: 55304
+current_cr: 52.500000, error_target_quantile: 0.999997, jp2_length: 78955
+current_cr: 63.750000, error_target_quantile: 0.999991, jp2_length: 65156
+current_cr: 69.375000, error_target_quantile: 0.999944, jp2_length: 59664
+current_cr: 66.562500, error_target_quantile: 0.999967, jp2_length: 62400
+current_cr: 65.156250, error_target_quantile: 0.999977, jp2_length: 63733
+current_cr: 64.453125, error_target_quantile: 0.999982, jp2_length: 64389
+trunc_lo: 0.0, trunc_hi: 6844336.0, coeffs_trunc_bytes: 0, cur_max_error: 14.476562, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3422168.0, coeffs_trunc_bytes: 427771, cur_max_error: 3.451286, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1711088.0, coeffs_trunc_bytes: 213886, cur_max_error: 6.652788, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 855544.0, coeffs_trunc_bytes: 106943, cur_max_error: 8.254993, error_target: 10.000000
+trunc_lo: 427776.0, trunc_hi: 855544.0, coeffs_trunc_bytes: 53472, cur_max_error: 10.502145, error_target: 10.000000
+trunc_lo: 427776.0, trunc_hi: 641664.0, coeffs_trunc_bytes: 80208, cur_max_error: 9.585661, error_target: 10.000000
+trunc_lo: 427776.0, trunc_hi: 534720.0, coeffs_trunc_bytes: 66840, cur_max_error: 9.685815, error_target: 10.000000
+trunc_lo: 481248.0, trunc_hi: 534720.0, coeffs_trunc_bytes: 60156, cur_max_error: 10.502145, error_target: 10.000000
+trunc_lo: 481248.0, trunc_hi: 507984.0, coeffs_trunc_bytes: 63498, cur_max_error: 9.685815, error_target: 10.000000
+trunc_lo: 494616.0, trunc_hi: 507984.0, coeffs_trunc_bytes: 61827, cur_max_error: 10.502145, error_target: 10.000000
+trunc_lo: 494616.0, trunc_hi: 501304.0, coeffs_trunc_bytes: 62663, cur_max_error: 9.685815, error_target: 10.000000
+trunc_lo: 494616.0, trunc_hi: 497960.0, coeffs_trunc_bytes: 62245, cur_max_error: 9.685815, error_target: 10.000000
+trunc_lo: 496288.0, trunc_hi: 497960.0, coeffs_trunc_bytes: 62036, cur_max_error: 10.502145, error_target: 10.000000
+trunc_lo: 496288.0, trunc_hi: 497128.0, coeffs_trunc_bytes: 62141, cur_max_error: 9.685815, error_target: 10.000000
+trunc_lo: 496288.0, trunc_hi: 496712.0, coeffs_trunc_bytes: 62089, cur_max_error: 9.685815, error_target: 10.000000
+trunc_lo: 496288.0, trunc_hi: 496504.0, coeffs_trunc_bytes: 62063, cur_max_error: 9.685815, error_target: 10.000000
+coeffs_size: 62063, compressed_size: 48477, jp2_length: 64389
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999991, jp2_length: 69126
+cr_hi: 120.000000, error_target_quantile: 0.997907, jp2_length: 34511
+current_cr: 75.000000, error_target_quantile: 0.999946, jp2_length: 55386
+current_cr: 52.500000, error_target_quantile: 0.999998, jp2_length: 79056
+current_cr: 63.750000, error_target_quantile: 0.999985, jp2_length: 65026
+current_cr: 58.125000, error_target_quantile: 0.999998, jp2_length: 71465
+current_cr: 60.937500, error_target_quantile: 0.999990, jp2_length: 68134
+current_cr: 62.343750, error_target_quantile: 0.999987, jp2_length: 66446
+current_cr: 61.640625, error_target_quantile: 0.999989, jp2_length: 67330
+trunc_lo: 0.0, trunc_hi: 6909856.0, coeffs_trunc_bytes: 0, cur_max_error: 13.187500, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3454928.0, coeffs_trunc_bytes: 431866, cur_max_error: 2.617218, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1727464.0, coeffs_trunc_bytes: 215933, cur_max_error: 5.919700, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 863736.0, coeffs_trunc_bytes: 107967, cur_max_error: 7.385049, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 431872.0, coeffs_trunc_bytes: 53984, cur_max_error: 9.525520, error_target: 10.000000
+trunc_lo: 215936.0, trunc_hi: 431872.0, coeffs_trunc_bytes: 26992, cur_max_error: 11.568230, error_target: 10.000000
+trunc_lo: 323904.0, trunc_hi: 431872.0, coeffs_trunc_bytes: 40488, cur_max_error: 11.568230, error_target: 10.000000
+trunc_lo: 377888.0, trunc_hi: 431872.0, coeffs_trunc_bytes: 47236, cur_max_error: 11.568230, error_target: 10.000000
+trunc_lo: 377888.0, trunc_hi: 404880.0, coeffs_trunc_bytes: 50610, cur_max_error: 9.525520, error_target: 10.000000
+trunc_lo: 391384.0, trunc_hi: 404880.0, coeffs_trunc_bytes: 48923, cur_max_error: 11.568230, error_target: 10.000000
+trunc_lo: 391384.0, trunc_hi: 398136.0, coeffs_trunc_bytes: 49767, cur_max_error: 9.525520, error_target: 10.000000
+trunc_lo: 394760.0, trunc_hi: 398136.0, coeffs_trunc_bytes: 49345, cur_max_error: 11.568230, error_target: 10.000000
+trunc_lo: 396448.0, trunc_hi: 398136.0, coeffs_trunc_bytes: 49556, cur_max_error: 11.568230, error_target: 10.000000
+trunc_lo: 397296.0, trunc_hi: 398136.0, coeffs_trunc_bytes: 49662, cur_max_error: 11.568230, error_target: 10.000000
+trunc_lo: 397296.0, trunc_hi: 397720.0, coeffs_trunc_bytes: 49715, cur_max_error: 9.525520, error_target: 10.000000
+trunc_lo: 397296.0, trunc_hi: 397512.0, coeffs_trunc_bytes: 49689, cur_max_error: 9.525520, error_target: 10.000000
+coeffs_size: 49689, compressed_size: 32196, jp2_length: 67330
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999998, jp2_length: 69169
+cr_hi: 120.000000, error_target_quantile: 0.998611, jp2_length: 34582
+current_cr: 75.000000, error_target_quantile: 0.999927, jp2_length: 55314
+current_cr: 52.500000, error_target_quantile: 1.000000, jp2_length: 79100
+current_cr: 63.750000, error_target_quantile: 0.999994, jp2_length: 64827
+current_cr: 69.375000, error_target_quantile: 0.999988, jp2_length: 59786
+current_cr: 66.562500, error_target_quantile: 0.999993, jp2_length: 62400
+current_cr: 67.968750, error_target_quantile: 0.999989, jp2_length: 61039
+current_cr: 67.265625, error_target_quantile: 0.999993, jp2_length: 61595
+trunc_lo: 0.0, trunc_hi: 6955400.0, coeffs_trunc_bytes: 0, cur_max_error: 12.125000, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3477704.0, coeffs_trunc_bytes: 434713, cur_max_error: 2.665656, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1738856.0, coeffs_trunc_bytes: 217357, cur_max_error: 7.331817, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 869432.0, coeffs_trunc_bytes: 108679, cur_max_error: 8.317003, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 434720.0, coeffs_trunc_bytes: 54340, cur_max_error: 9.919715, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 217360.0, coeffs_trunc_bytes: 27170, cur_max_error: 9.919715, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 108680.0, coeffs_trunc_bytes: 13585, cur_max_error: 9.919715, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 54344.0, coeffs_trunc_bytes: 6793, cur_max_error: 9.919715, error_target: 10.000000
+trunc_lo: 27176.0, trunc_hi: 54344.0, coeffs_trunc_bytes: 3397, cur_max_error: 12.116697, error_target: 10.000000
+trunc_lo: 40760.0, trunc_hi: 54344.0, coeffs_trunc_bytes: 5095, cur_max_error: 10.012209, error_target: 10.000000
+trunc_lo: 40760.0, trunc_hi: 47552.0, coeffs_trunc_bytes: 5944, cur_max_error: 9.919715, error_target: 10.000000
+trunc_lo: 44160.0, trunc_hi: 47552.0, coeffs_trunc_bytes: 5520, cur_max_error: 10.012209, error_target: 10.000000
+trunc_lo: 45856.0, trunc_hi: 47552.0, coeffs_trunc_bytes: 5732, cur_max_error: 10.012209, error_target: 10.000000
+trunc_lo: 45856.0, trunc_hi: 46704.0, coeffs_trunc_bytes: 5838, cur_max_error: 9.919715, error_target: 10.000000
+trunc_lo: 46280.0, trunc_hi: 46704.0, coeffs_trunc_bytes: 5785, cur_max_error: 10.012209, error_target: 10.000000
+trunc_lo: 46280.0, trunc_hi: 46496.0, coeffs_trunc_bytes: 5812, cur_max_error: 9.919715, error_target: 10.000000
+coeffs_size: 5812, compressed_size: 2072, jp2_length: 61595
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999996, jp2_length: 69210
+cr_hi: 120.000000, error_target_quantile: 0.998295, jp2_length: 34532
+current_cr: 75.000000, error_target_quantile: 0.999946, jp2_length: 55219
+current_cr: 52.500000, error_target_quantile: 0.999998, jp2_length: 79013
+current_cr: 63.750000, error_target_quantile: 0.999997, jp2_length: 65052
+current_cr: 69.375000, error_target_quantile: 0.999971, jp2_length: 59837
+current_cr: 66.562500, error_target_quantile: 0.999988, jp2_length: 62319
+current_cr: 65.156250, error_target_quantile: 0.999997, jp2_length: 63698
+current_cr: 65.859375, error_target_quantile: 0.999996, jp2_length: 63070
+trunc_lo: 0.0, trunc_hi: 7134592.0, coeffs_trunc_bytes: 0, cur_max_error: 10.927734, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3567296.0, coeffs_trunc_bytes: 445912, cur_max_error: 2.720902, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1783648.0, coeffs_trunc_bytes: 222956, cur_max_error: 5.732031, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 891824.0, coeffs_trunc_bytes: 111478, cur_max_error: 8.507345, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 445912.0, coeffs_trunc_bytes: 55739, cur_max_error: 8.964621, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 222960.0, coeffs_trunc_bytes: 27870, cur_max_error: 9.603424, error_target: 10.000000
+trunc_lo: 111480.0, trunc_hi: 222960.0, coeffs_trunc_bytes: 13935, cur_max_error: 10.960785, error_target: 10.000000
+trunc_lo: 111480.0, trunc_hi: 167224.0, coeffs_trunc_bytes: 20903, cur_max_error: 9.976386, error_target: 10.000000
+trunc_lo: 139352.0, trunc_hi: 167224.0, coeffs_trunc_bytes: 17419, cur_max_error: 10.145013, error_target: 10.000000
+trunc_lo: 139352.0, trunc_hi: 153288.0, coeffs_trunc_bytes: 19161, cur_max_error: 9.892072, error_target: 10.000000
+trunc_lo: 146320.0, trunc_hi: 153288.0, coeffs_trunc_bytes: 18290, cur_max_error: 10.145013, error_target: 10.000000
+trunc_lo: 149808.0, trunc_hi: 153288.0, coeffs_trunc_bytes: 18726, cur_max_error: 10.145013, error_target: 10.000000
+trunc_lo: 149808.0, trunc_hi: 151552.0, coeffs_trunc_bytes: 18944, cur_max_error: 9.892072, error_target: 10.000000
+trunc_lo: 150680.0, trunc_hi: 151552.0, coeffs_trunc_bytes: 18835, cur_max_error: 10.145013, error_target: 10.000000
+trunc_lo: 150680.0, trunc_hi: 151120.0, coeffs_trunc_bytes: 18890, cur_max_error: 9.892072, error_target: 10.000000
+trunc_lo: 150904.0, trunc_hi: 151120.0, coeffs_trunc_bytes: 18863, cur_max_error: 10.145013, error_target: 10.000000
+coeffs_size: 18890, compressed_size: 10620, jp2_length: 63070
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999973, jp2_length: 69158
+current_cr: 45.000000, error_target_quantile: 0.999997, jp2_length: 92236
+current_cr: 52.500000, error_target_quantile: 0.999997, jp2_length: 79113
+current_cr: 56.250000, error_target_quantile: 0.999995, jp2_length: 73847
+current_cr: 58.125000, error_target_quantile: 0.999977, jp2_length: 71386
+current_cr: 57.187500, error_target_quantile: 0.999984, jp2_length: 72535
+trunc_lo: 0.0, trunc_hi: 7032520.0, coeffs_trunc_bytes: 0, cur_max_error: 13.174805, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3516264.0, coeffs_trunc_bytes: 439533, cur_max_error: 3.079886, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1758136.0, coeffs_trunc_bytes: 219767, cur_max_error: 6.537818, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 879072.0, coeffs_trunc_bytes: 109884, cur_max_error: 7.884708, error_target: 10.000000
+trunc_lo: 439536.0, trunc_hi: 879072.0, coeffs_trunc_bytes: 54942, cur_max_error: 10.046684, error_target: 10.000000
+trunc_lo: 439536.0, trunc_hi: 659304.0, coeffs_trunc_bytes: 82413, cur_max_error: 9.858686, error_target: 10.000000
+trunc_lo: 549424.0, trunc_hi: 659304.0, coeffs_trunc_bytes: 68678, cur_max_error: 10.046684, error_target: 10.000000
+trunc_lo: 604368.0, trunc_hi: 659304.0, coeffs_trunc_bytes: 75546, cur_max_error: 10.046684, error_target: 10.000000
+trunc_lo: 604368.0, trunc_hi: 631840.0, coeffs_trunc_bytes: 78980, cur_max_error: 9.858686, error_target: 10.000000
+trunc_lo: 618104.0, trunc_hi: 631840.0, coeffs_trunc_bytes: 77263, cur_max_error: 10.046684, error_target: 10.000000
+trunc_lo: 624976.0, trunc_hi: 631840.0, coeffs_trunc_bytes: 78122, cur_max_error: 10.046684, error_target: 10.000000
+trunc_lo: 628408.0, trunc_hi: 631840.0, coeffs_trunc_bytes: 78551, cur_max_error: 10.046684, error_target: 10.000000
+trunc_lo: 628408.0, trunc_hi: 630128.0, coeffs_trunc_bytes: 78766, cur_max_error: 9.858686, error_target: 10.000000
+trunc_lo: 629272.0, trunc_hi: 630128.0, coeffs_trunc_bytes: 78659, cur_max_error: 10.046684, error_target: 10.000000
+trunc_lo: 629704.0, trunc_hi: 630128.0, coeffs_trunc_bytes: 78713, cur_max_error: 10.046684, error_target: 10.000000
+trunc_lo: 629920.0, trunc_hi: 630128.0, coeffs_trunc_bytes: 78740, cur_max_error: 10.046684, error_target: 10.000000
+coeffs_size: 78766, compressed_size: 64394, jp2_length: 72535
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.999566, jp2_length: 69230
+current_cr: 45.000000, error_target_quantile: 0.999987, jp2_length: 92277
+current_cr: 37.500000, error_target_quantile: 0.999999, jp2_length: 110680
+current_cr: 41.250000, error_target_quantile: 0.999995, jp2_length: 100596
+current_cr: 43.125000, error_target_quantile: 0.999992, jp2_length: 96307
+current_cr: 44.062500, error_target_quantile: 0.999990, jp2_length: 94211
+trunc_lo: 0.0, trunc_hi: 7085552.0, coeffs_trunc_bytes: 0, cur_max_error: 12.292969, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3542776.0, coeffs_trunc_bytes: 442847, cur_max_error: 3.048962, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1771392.0, coeffs_trunc_bytes: 221424, cur_max_error: 6.345693, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 885696.0, coeffs_trunc_bytes: 110712, cur_max_error: 8.820906, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 442848.0, coeffs_trunc_bytes: 55356, cur_max_error: 9.091702, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 221424.0, coeffs_trunc_bytes: 27678, cur_max_error: 8.993175, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 110712.0, coeffs_trunc_bytes: 13839, cur_max_error: 9.568091, error_target: 10.000000
+trunc_lo: 55360.0, trunc_hi: 110712.0, coeffs_trunc_bytes: 6920, cur_max_error: 12.276042, error_target: 10.000000
+trunc_lo: 83040.0, trunc_hi: 110712.0, coeffs_trunc_bytes: 10380, cur_max_error: 12.276042, error_target: 10.000000
+trunc_lo: 96880.0, trunc_hi: 110712.0, coeffs_trunc_bytes: 12110, cur_max_error: 10.117083, error_target: 10.000000
+trunc_lo: 96880.0, trunc_hi: 103800.0, coeffs_trunc_bytes: 12975, cur_max_error: 9.568091, error_target: 10.000000
+trunc_lo: 96880.0, trunc_hi: 100344.0, coeffs_trunc_bytes: 12543, cur_max_error: 9.917317, error_target: 10.000000
+trunc_lo: 96880.0, trunc_hi: 98616.0, coeffs_trunc_bytes: 12327, cur_max_error: 9.917317, error_target: 10.000000
+trunc_lo: 96880.0, trunc_hi: 97752.0, coeffs_trunc_bytes: 12219, cur_max_error: 9.963216, error_target: 10.000000
+trunc_lo: 96880.0, trunc_hi: 97320.0, coeffs_trunc_bytes: 12165, cur_max_error: 9.963216, error_target: 10.000000
+trunc_lo: 96880.0, trunc_hi: 97104.0, coeffs_trunc_bytes: 12138, cur_max_error: 9.963216, error_target: 10.000000
+coeffs_size: 12138, compressed_size: 4806, jp2_length: 94211
+dimensions:	(1, 721, 1440)
+base_cr:	30.000000
+residual type:	MAX_ERROR
+max error:	10.000000
+cr_hi: 60.000000, error_target_quantile: 0.995924, jp2_length: 69201
+current_cr: 45.000000, error_target_quantile: 0.999801, jp2_length: 92261
+current_cr: 37.500000, error_target_quantile: 0.999990, jp2_length: 110755
+current_cr: 41.250000, error_target_quantile: 0.999908, jp2_length: 100555
+current_cr: 39.375000, error_target_quantile: 0.999951, jp2_length: 105428
+current_cr: 38.437500, error_target_quantile: 0.999977, jp2_length: 108056
+trunc_lo: 0.0, trunc_hi: 7045416.0, coeffs_trunc_bytes: 0, cur_max_error: 12.750732, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 3522712.0, coeffs_trunc_bytes: 440339, cur_max_error: 3.280298, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 1761360.0, coeffs_trunc_bytes: 220170, cur_max_error: 5.984060, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 880680.0, coeffs_trunc_bytes: 110085, cur_max_error: 8.120390, error_target: 10.000000
+trunc_lo: 0.0, trunc_hi: 440344.0, coeffs_trunc_bytes: 55043, cur_max_error: 9.510665, error_target: 10.000000
+trunc_lo: 220176.0, trunc_hi: 440344.0, coeffs_trunc_bytes: 27522, cur_max_error: 10.968977, error_target: 10.000000
+trunc_lo: 220176.0, trunc_hi: 330264.0, coeffs_trunc_bytes: 41283, cur_max_error: 9.636627, error_target: 10.000000
+trunc_lo: 275224.0, trunc_hi: 330264.0, coeffs_trunc_bytes: 34403, cur_max_error: 10.579723, error_target: 10.000000
+trunc_lo: 275224.0, trunc_hi: 302744.0, coeffs_trunc_bytes: 37843, cur_max_error: 9.636627, error_target: 10.000000
+trunc_lo: 275224.0, trunc_hi: 288984.0, coeffs_trunc_bytes: 36123, cur_max_error: 9.636627, error_target: 10.000000
+trunc_lo: 282104.0, trunc_hi: 288984.0, coeffs_trunc_bytes: 35263, cur_max_error: 10.579723, error_target: 10.000000
+trunc_lo: 285544.0, trunc_hi: 288984.0, coeffs_trunc_bytes: 35693, cur_max_error: 10.579723, error_target: 10.000000
+trunc_lo: 285544.0, trunc_hi: 287264.0, coeffs_trunc_bytes: 35908, cur_max_error: 9.636627, error_target: 10.000000
+trunc_lo: 286408.0, trunc_hi: 287264.0, coeffs_trunc_bytes: 35801, cur_max_error: 10.579723, error_target: 10.000000
+trunc_lo: 286840.0, trunc_hi: 287264.0, coeffs_trunc_bytes: 35855, cur_max_error: 10.579723, error_target: 10.000000
+trunc_lo: 287056.0, trunc_hi: 287264.0, coeffs_trunc_bytes: 35882, cur_max_error: 10.579723, error_target: 10.000000
+coeffs_size: 35908, compressed_size: 24895, jp2_length: 108056
+achieved compression ratio of 21.965571563642232
+ 	SZ3	JP2
+Size	1.21MB	1.99MB
+RMSE	3.787	1.638
+MAX	10.265	11.249

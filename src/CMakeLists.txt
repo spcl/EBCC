@@ -5,8 +5,10 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_C_FLAGS_RELEASE "-O3")
-set(CMAKE_C_FLAGS_DEBUG "-g -Og -DDEBUG")
+set(CMAKE_C_FLAGS_RELEASE "-O3 -DDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_C_FLAGS_DEBUG "-g -O2 -DDEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O2")
 set(BUILD_THIRDPARTY True)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
@@ -22,6 +24,7 @@ set(SOURCES
 )
 
 add_library(h5z_j2k SHARED h5z_j2k.c spiht.cc ${SOURCES})
+set_property(TARGET h5z_j2k PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 
 add_subdirectory(zstd/build/cmake)
