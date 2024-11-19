@@ -7,7 +7,7 @@
 
 extern "C" void spiht_encode(float *buffer, size_t height, size_t width, uint8_t **out_buffer, size_t *output_size, int num_stages) {
     Encoder encoder;
-    encoder.encode_image(buffer, height, width, out_buffer, output_size, num_stages);
+    encoder.encode_image(buffer, height, width, out_buffer, output_size, 0, num_stages);
 }
 
 

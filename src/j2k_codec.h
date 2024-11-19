@@ -388,11 +388,11 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     uint8_t *compressed_coefficients = NULL;
     uint8_t *coeffs_buf = NULL;
     float residual_maxval = 0., residual_minval = 0.;
-    size_t coeffs_size = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
-    double trunc_hi, trunc_lo;
+    size_t coeffs_size = 0, coeffs_size_orig = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
+    double trunc_hi, trunc_lo, best_feasible_trunc;
     double quantile = config->quantile, base_quantile_target = 1-1e-6, eps=1e-8;
 #ifdef DEBUG
-    printf("1 - base_quantile_target: %f\n", 1-base_quantile_target);
+    printf("1 - base_quantile_target: %.1e\n", 1-base_quantile_target);
 #endif
     if (config->residual_compression_type != NONE) {
         // decode back the image
@@ -414,9 +414,11 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
         if (config->residual_compression_type == QUANTILE) {
             assert(0); /* Deprecated */
         } else if (config->residual_compression_type == SPARSIFICATION_FACTOR) {
-            spiht_encode(residual_norm, image_dims[0], image_dims[1], &coeffs_buf, &coeffs_size, WAVELET_LEVELS);
+            
             double q_ratio = 1. - (1. / config->residual_cr);
-            coeffs_trunc_bits = coeffs_size * 8 - (size_t) ((double)coeffs_size / config->residual_cr * 8 );
+            coeffs_trunc_bits = tot_size * 8 - (size_t) ((double)tot_size / config->residual_cr * 8 );
+            spiht_encode(residual_norm, image_dims[0], image_dims[1], &coeffs_buf, &coeffs_size_orig, coeffs_trunc_bits, WAVELET_LEVELS);
+            coeffs_size = coeffs_size_orig;
         } else if (config->residual_compression_type == MAX_ERROR ||
                 config->residual_compression_type == RELATIVE_ERROR) {
             double error_target_quantile, error_target_quantile_prev = 0;
@@ -432,7 +434,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 cr_lo /= 2;
                 error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
 #ifdef DEBUG
-                printf("cr_lo: %f, error_target_quantile: %f, jp2_length: %lu\n", cr_lo, error_target_quantile, codec_data_buffer.length);
+                printf("cr_lo: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", cr_lo, 1-error_target_quantile, codec_data_buffer.length);
                 fflush(stdout);
 #endif
             }
@@ -441,7 +443,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 cr_hi *= 2;
                 error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_hi, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
 #ifdef DEBUG
-                printf("cr_hi: %f, error_target_quantile: %f, jp2_length: %lu\n", cr_hi, error_target_quantile, codec_data_buffer.length);
+                printf("cr_hi: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", cr_hi, 1-error_target_quantile, codec_data_buffer.length);
                 fflush(stdout);
 #endif
             }
@@ -452,7 +454,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 current_cr = (cr_lo + cr_hi) / 2;
                 error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
 #ifdef DEBUG
-                printf("current_cr: %f, error_target_quantile: %f, jp2_length: %lu\n", current_cr, error_target_quantile, codec_data_buffer.length);
+                printf("current_cr: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", current_cr, 1-error_target_quantile, codec_data_buffer.length);
                 fflush(stdout);
 #endif
                 if (error_target_quantile < base_quantile_target) {
@@ -465,45 +467,83 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 residual[i] = data[i] - decoded[i];
             }
             findMinMaxf(residual, tot_size, &residual_minval, &residual_maxval);
-            for (size_t i = 0; i < tot_size; ++i) {
-                residual_norm[i] = (residual[i] - residual_minval) / (residual_maxval - residual_minval);
-            }
-            spiht_encode(residual_norm, image_dims[0], image_dims[1], &coeffs_buf, &coeffs_size, WAVELET_LEVELS);
-            trunc_hi = (double) coeffs_size * 8;
-            trunc_lo = 0;
-            coeffs_trunc_bits = (size_t) trunc_lo;
+
             float cur_max_error = fmaxf(fabsf(residual_minval), fabsf(residual_maxval));
-#ifdef DEBUG
-            printf("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f, error_target: %f\n", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error, error_target);
-            fflush(stdout);
-#endif
-            /* TODO: scan from small values, recursive doubling*/
-            /* TODO: log down best feasible trunc location & error*/
-            /* TODO: exit after 64 trials or examine initial trunc_hi satisfy the error requirement*/
-            while (fabsf(cur_max_error - error_target)/error_target > eps && trunc_hi - trunc_lo > 8 * 32) {
-                coeffs_trunc_bits = ((size_t) ceill((trunc_hi + trunc_lo) / 2 / 8)) * 8; /* ceil to bytes*/
-                spiht_decode(coeffs_buf, coeffs_size, residual_norm, image_dims[0], image_dims[1], coeffs_trunc_bits);
+            float best_feasible_error = -1;
+            int skip_residual = cur_max_error <= error_target;
+
+            if (!skip_residual) {
+                for (size_t i = 0; i < tot_size; ++i) {
+                    residual_norm[i] = (residual[i] - residual_minval) / (residual_maxval - residual_minval);
+                }
+                coeffs_trunc_bits = codec_data_buffer.length * 8;
+                spiht_encode(residual_norm, image_dims[0], image_dims[1], &coeffs_buf, &coeffs_size_orig, coeffs_trunc_bits, WAVELET_LEVELS);
+                spiht_decode(coeffs_buf, coeffs_size_orig, residual_norm, image_dims[0], image_dims[1], coeffs_size_orig*8);
+                coeffs_size = coeffs_size_orig;
                 for (size_t i = 0; i < tot_size; ++i) {
                     residual[i] = residual_norm[i] * (residual_maxval - residual_minval) + residual_minval;
                 }
                 cur_max_error = get_max_error(data, decoded, residual, tot_size);
                 if (cur_max_error > error_target) {
-                    trunc_lo = coeffs_trunc_bits;
+                    fprintf(stderr, "Could not reach error target of %f (%f instead).\n", error_target, cur_max_error);
+                    skip_residual = 1;
                 } else {
-                    trunc_hi = coeffs_trunc_bits;
+                    best_feasible_error = cur_max_error;
                 }
-#if DEBUG
+            }
+            if (!skip_residual) {
+                trunc_hi = (double) coeffs_size * 8;
+                trunc_lo = 112.0; // that's the number of bits in the header
+                coeffs_trunc_bits = (size_t) trunc_lo;
+                cur_max_error = fmaxf(fabsf(residual_minval), fabsf(residual_maxval));
+#ifdef DEBUG
                 printf("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f, error_target: %f\n", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error, error_target);
                 fflush(stdout);
 #endif
+                /* TODO: scan from small values, recursive doubling*/
+                /* TODO: log down best feasible trunc location & error*/
+                /* TODO: exit after 64 trials or examine initial trunc_hi satisfy the error requirement*/
+                best_feasible_trunc = trunc_hi;
+                while (((error_target - best_feasible_error)/error_target > eps) && (trunc_hi - trunc_lo > 8 * 4)) {
+                    coeffs_trunc_bits = ((size_t) ceill((trunc_hi + trunc_lo) / 2 / 8)) * 8; /* ceil to bytes*/
+                    spiht_decode(coeffs_buf, coeffs_trunc_bits / 8, residual_norm, image_dims[0], image_dims[1], coeffs_trunc_bits);
+                    for (size_t i = 0; i < tot_size; ++i) {
+                        residual[i] = residual_norm[i] * (residual_maxval - residual_minval) + residual_minval;
+                    }
+                    cur_max_error = get_max_error(data, decoded, residual, tot_size);
+                    if (cur_max_error > error_target) {
+                        trunc_lo = coeffs_trunc_bits;
+                    } else {
+                        trunc_hi = coeffs_trunc_bits;
+                        if (cur_max_error >= best_feasible_error) {
+                            best_feasible_error = cur_max_error;
+                            best_feasible_trunc = coeffs_trunc_bits;
+                        }
+                    }
+#ifdef DEBUG
+                    printf("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f\n", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error);
+                    fflush(stdout);
+#endif
+                }
+                coeffs_size = (size_t) (best_feasible_trunc / 8.);
+#ifdef DEBUG
+                spiht_decode(coeffs_buf, coeffs_size, residual_norm, image_dims[0], image_dims[1], coeffs_size*8);
+                for (size_t i = 0; i < tot_size; ++i) {
+                    residual[i] = residual_norm[i] * (residual_maxval - residual_minval) + residual_minval;
+                }
+                cur_max_error = get_max_error(data, decoded, residual, tot_size);
+                printf("best feasible trunc: %.1f, best feasible error: %f, actual error: %f, error_target: %f\n", best_feasible_trunc, best_feasible_error, cur_max_error, error_target);
+                fflush(stdout);
+#endif
+
             }
             
         }
 
         free(scaled_data);
 
-        coeffs_size = (size_t) ceill(trunc_hi / 8.);
         if (coeffs_size <= 16) coeffs_size = 0;
+        
 
         compressed_size = ZSTD_compressBound(coeffs_size * sizeof(uint8_t));
         compressed_coefficients = (uint8_t *) malloc(compressed_size);

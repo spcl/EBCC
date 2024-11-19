@@ -24,8 +24,6 @@ jp2spwv_filter = JP2SPWV_Filter(
     # `("quantile_target", xxx)` : specifies the quantile used to sparsify the wavelet transformed residual
     # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression
 
-print(dict(jp2spwv_filter))
-print(data.dtype)
 data_comp = f.create_dataset('z', shape=data.shape, dtype=np.float32, **jp2spwv_filter)
 f['z'][...] = data[...]
 #for name,val in data.attrs.items():
@@ -40,5 +38,5 @@ f.close()
 original_size = os.path.getsize(f'geopotential_pl_small.nc')
 compressed_size = os.path.getsize(f'geopotential_pl_small_jp2.nc')
 
-print(f'achieved compression ratio of {original_size/compressed_size}')
+print(f'JP2SPWV: achieved compression ratio of {original_size/compressed_size}')
 

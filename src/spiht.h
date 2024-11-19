@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-void spiht_encode(float *buffer, size_t height, size_t width, uint8_t **out_buffer, size_t *output_size, int num_stages);
+void spiht_encode(float *buffer, size_t height, size_t width, uint8_t **out_buffer, size_t *output_size, size_t trunc_bits, int num_stages);
 void spiht_decode(uint8_t *buffer, size_t size, float *out_buffer, size_t height, size_t width, int num_bits);
 void spiht_destroy_buffer(uint8_t *buffer);
 #ifdef __cplusplus
