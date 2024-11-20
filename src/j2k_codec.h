@@ -430,6 +430,9 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             error_target_quantile_prev = error_target_quantile;
             cr_lo = current_cr;
             cr_hi = current_cr;
+            /* TODO: log down best feasible trunc location & error*/
+            /* TODO: take error target quantile from env*/
+            /* TODO: log according to env*/
             while (error_target_quantile < base_quantile_target) {
                 cr_lo /= 2;
                 error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
@@ -501,7 +504,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 fflush(stdout);
 #endif
                 /* TODO: scan from small values, recursive doubling*/
-                /* TODO: log down best feasible trunc location & error*/
+                
                 /* TODO: exit after 64 trials or examine initial trunc_hi satisfy the error requirement*/
                 best_feasible_trunc = trunc_hi;
                 while (((error_target - best_feasible_error)/error_target > eps) && (trunc_hi - trunc_lo > 8 * 4)) {
@@ -535,7 +538,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 printf("best feasible trunc: %.1f, best feasible error: %f, actual error: %f, error_target: %f\n", best_feasible_trunc, best_feasible_error, cur_max_error, error_target);
                 fflush(stdout);
 #endif
-
+            /* TODO: check if pure JPEG at this CR works better*/
             }
             
         }
@@ -544,10 +547,11 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
         if (coeffs_size <= 16) coeffs_size = 0;
         
-
-        compressed_size = ZSTD_compressBound(coeffs_size * sizeof(uint8_t));
-        compressed_coefficients = (uint8_t *) malloc(compressed_size);
-        compressed_size = ZSTD_compress(compressed_coefficients, compressed_size, coeffs_buf, coeffs_size * sizeof(uint8_t), 22);
+        if (coeffs_size > 0) {
+            compressed_size = ZSTD_compressBound(coeffs_size * sizeof(uint8_t));
+            compressed_coefficients = (uint8_t *) malloc(compressed_size);
+            compressed_size = ZSTD_compress(compressed_coefficients, compressed_size, coeffs_buf, coeffs_size * sizeof(uint8_t), 22);
+        }
 #ifdef DEBUG
         printf("coeffs_size: %lu, compressed_size: %lu, jp2_length: %lu, compression ratio: %f\n", coeffs_size, compressed_size, codec_data_buffer.length, (float) (tot_size * sizeof(float)) / (compressed_size + codec_data_buffer.length));
 #endif

@@ -8,7 +8,7 @@ f = h5py.File('geopotential_pl_small_sperr.nc', 'w')
 orig = xarray.open_dataset('geopotential_pl_small.nc')
 data = orig['z'].data
 
-data_comp = f.create_dataset('z', shape=data.shape, dtype=np.float32, **hdf5plugin.Sperr(absolute=10.0))
+data_comp = f.create_dataset('z', shape=data.shape, dtype=np.float32, chunks = (1, 1, data.shape[-2], data.shape[-1]), **hdf5plugin.Sperr(absolute=10.0))
 f['z'][...] = data[...]
 
 f.close()

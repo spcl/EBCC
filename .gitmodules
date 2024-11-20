@@ -9,4 +9,4 @@
 	url = https://github.com/facebook/zstd.git
 [submodule "src/imshrinker"]
 	path = src/imshrinker
-	url = https://github.com/gilson27/imshrinker.git
+	url = git@spclgitlab.ethz.ch:huanglangwen/imshrinker.git
