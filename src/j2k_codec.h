@@ -430,7 +430,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             error_target_quantile_prev = error_target_quantile;
             cr_lo = current_cr;
             cr_hi = current_cr;
-            /* TODO: log down best feasible trunc location & error*/
+            /* DONE: log down best feasible cr*/
             /* TODO: take error target quantile from env*/
             /* TODO: log according to env*/
             while (error_target_quantile < base_quantile_target) {
@@ -466,6 +466,9 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                     cr_lo = current_cr;
                 }
             }
+            /* use cr_lo as the best feasible cr */
+            error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
+            
             for (size_t i = 0; i < tot_size; ++i) {
                 residual[i] = data[i] - decoded[i];
             }
