@@ -344,6 +344,59 @@ double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t
     return get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
 }
 
+float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr, 
+                             codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval, 
+                             float *data, size_t tot_size, float error_target, double base_quantile_target) {
+    float cr_lo = current_cr;
+    float cr_hi = current_cr;
+    double error_target_quantile = get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
+    double error_target_quantile_prev = error_target_quantile;
+    double eps = 1e-8;
+    /* TODO: log down best feasible cr!, best feasible error*/
+    /* TODO: take error target quantile from env*/
+    /* TODO: log according to env*/
+    while (error_target_quantile < base_quantile_target) {
+        cr_lo /= 2;
+        error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
+#ifdef DEBUG
+        printf("cr_lo: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", cr_lo, 1-error_target_quantile, codec_data_buffer->length);
+        fflush(stdout);
+#endif
+    }
+    error_target_quantile = error_target_quantile_prev;
+    while (error_target_quantile >= base_quantile_target) {
+        cr_hi *= 2;
+        error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_hi, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
+#ifdef DEBUG
+        printf("cr_hi: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", cr_hi, 1-error_target_quantile, codec_data_buffer->length);
+        fflush(stdout);
+#endif
+    }
+    error_target_quantile = error_target_quantile_prev;
+
+    assert(cr_lo <= cr_hi);
+    while ((fabs(error_target_quantile - base_quantile_target) > eps || error_target_quantile == 1.0) && cr_hi - cr_lo > 1.) {
+        current_cr = (cr_lo + cr_hi) / 2;
+        error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
+#ifdef DEBUG
+        printf("current_cr: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", current_cr, 1-error_target_quantile, codec_data_buffer->length);
+        fflush(stdout);
+#endif
+        if (error_target_quantile < base_quantile_target) {
+            cr_hi = current_cr;
+        } else {
+            cr_lo = current_cr;
+        }
+    }
+    /* use cr_lo as the best feasible cr */
+    error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
+    if (error_target_quantile < base_quantile_target) {
+        fprintf(stderr, "Could not reach error target quantile of (1-%.2e) (1-%.2e instead).\n", 1-base_quantile_target, 1-error_target_quantile);
+    }
+    return cr_lo;
+
+}
+
 size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **out_buffer) {
 #ifdef DEBUG
     print_config(config);
@@ -421,53 +474,12 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             coeffs_size = coeffs_size_orig;
         } else if (config->residual_compression_type == MAX_ERROR ||
                 config->residual_compression_type == RELATIVE_ERROR) {
-            double error_target_quantile, error_target_quantile_prev = 0;
-            float error_target = config->error, current_cr = config->base_cr, cr_lo, cr_hi;
+            float error_target = config->error, current_cr = config->base_cr;
             if (config->residual_compression_type == RELATIVE_ERROR) {
                 error_target *= get_data_range(data, tot_size);
             }
-            error_target_quantile = get_error_target_quantile(data, decoded, NULL, tot_size, error_target);
-            error_target_quantile_prev = error_target_quantile;
-            cr_lo = current_cr;
-            cr_hi = current_cr;
-            /* DONE: log down best feasible cr*/
-            /* TODO: take error target quantile from env*/
-            /* TODO: log according to env*/
-            while (error_target_quantile < base_quantile_target) {
-                cr_lo /= 2;
-                error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
-#ifdef DEBUG
-                printf("cr_lo: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", cr_lo, 1-error_target_quantile, codec_data_buffer.length);
-                fflush(stdout);
-#endif
-            }
-            error_target_quantile = error_target_quantile_prev;
-            while (error_target_quantile >= base_quantile_target) {
-                cr_hi *= 2;
-                error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_hi, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
-#ifdef DEBUG
-                printf("cr_hi: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", cr_hi, 1-error_target_quantile, codec_data_buffer.length);
-                fflush(stdout);
-#endif
-            }
-            error_target_quantile = error_target_quantile_prev;
 
-            assert(cr_lo <= cr_hi);
-            while ((fabs(error_target_quantile - base_quantile_target) > eps || error_target_quantile == 1.0) && cr_hi - cr_lo > 1.) {
-                current_cr = (cr_lo + cr_hi) / 2;
-                error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
-#ifdef DEBUG
-                printf("current_cr: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", current_cr, 1-error_target_quantile, codec_data_buffer.length);
-                fflush(stdout);
-#endif
-                if (error_target_quantile < base_quantile_target) {
-                    cr_hi = current_cr;
-                } else {
-                    cr_lo = current_cr;
-                }
-            }
-            /* use cr_lo as the best feasible cr */
-            error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target);
+            current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, base_quantile_target);
             
             for (size_t i = 0; i < tot_size; ++i) {
                 residual[i] = data[i] - decoded[i];
@@ -491,8 +503,10 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 }
                 cur_max_error = get_max_error(data, decoded, residual, tot_size);
                 if (cur_max_error > error_target) {
-                    fprintf(stderr, "Could not reach error target of %f (%f instead).\n", error_target, cur_max_error);
+                    fprintf(stderr, "Could not reach error target of %f (%f instead), base compression max error: %f.\n Retry with pure base compression.\n", error_target, cur_max_error, fmaxf(fabsf(residual_minval), fabsf(residual_maxval)));
                     skip_residual = 1;
+                    /*DONE: if this happen, go for full jpeg2000*/
+                    current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr*0.8, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
                 } else {
                     best_feasible_error = cur_max_error;
                 }
