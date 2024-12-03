@@ -354,7 +354,7 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
     double eps = 1e-8;
     /* TODO: log down best feasible cr!, best feasible error*/
     /* TODO: take error target quantile from env*/
-    /* TODO: log according to env*/
+    /* TODO: log according to env, with log.c */
     while (error_target_quantile < base_quantile_target) {
         cr_lo /= 2;
         error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
@@ -503,7 +503,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 }
                 cur_max_error = get_max_error(data, decoded, residual, tot_size);
                 if (cur_max_error > error_target) {
-                    fprintf(stderr, "Could not reach error target of %f (%f instead), base compression max error: %f.\n Retry with pure base compression.\n", error_target, cur_max_error, fmaxf(fabsf(residual_minval), fabsf(residual_maxval)));
+                    fprintf(stderr, "Could not reach error target of %f (%f instead), base compression max error: %f. Retry with pure base compression.\n", error_target, cur_max_error, fmaxf(fabsf(residual_minval), fabsf(residual_maxval)));
                     skip_residual = 1;
                     /*DONE: if this happen, go for full jpeg2000*/
                     current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr*0.8, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);

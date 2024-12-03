@@ -45,9 +45,9 @@ class JP2SPWV_Filter(Mapping):
 
         self.hdf_filter_opts = tuple(hdf_filter_opts)
         self.chunks = (*[1 for _ in range(self.data_dim - 2)], height, width)
-        if filter_path is None:
-            filter_path = os.path.join(os.path.dirname(__file__), 'src')
-        os.environ["HDF5_PLUGIN_PATH"] = filter_path
+        #if filter_path is None:
+        #    filter_path = os.path.join(os.path.dirname(__file__), 'src')
+        #os.environ["HDF5_PLUGIN_PATH"] = filter_path
 
     # https://github.com/silx-kit/hdf5plugin/blob/main/src/hdf5plugin/_filters.py
     @property
