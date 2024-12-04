@@ -81,7 +81,7 @@ def compress_and_compare(ds, var, level, output_folder, method, rel_target):
     encoding = prepare_encoding(method, abs_target, height, width, data_dim)
     output_path = os.path.join(output_folder, output_name)
     compress(da, var, output_path, encoding)
-    rmse, max_diff, size, cr = compare(ds[var], output_path)
+    rmse, max_diff, size, cr = compare(da, output_path)
     stats.append([method, var_name, rmse, max_diff, size, cr])
     stats_df = pd.DataFrame(stats, columns=["method", "variable", "rmse", "max_err", "size", "cr"])
     return stats_df
