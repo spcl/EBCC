@@ -26,7 +26,8 @@ set(SOURCES
 add_library(h5z_j2k SHARED h5z_j2k.c spiht.cc ${SOURCES})
 set_property(TARGET h5z_j2k PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
-
+option(ZSTD_BUILD_PROGRAMS "" OFF)
+option(BUILD_CODEC "Build OPENJPEG CLI APPS" OFF)
 add_subdirectory(zstd/build/cmake)
 add_subdirectory(wavelib/src)
 add_subdirectory(openjpeg)
