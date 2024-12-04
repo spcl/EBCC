@@ -275,6 +275,8 @@ void findMinMaxf(const float *array, size_t size, float *min, float *max) {
     if (size == 0) {
         return;
     }
+    min_val = array[0];
+    max_val = array[0];
 
     for (size_t i = 0; i < size; ++i) {
         if (array[i] < min_val) {
@@ -355,7 +357,7 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
     /* TODO: log down best feasible cr!, best feasible error*/
     /* TODO: take error target quantile from env*/
     /* TODO: log according to env, with log.c */
-    while (error_target_quantile < base_quantile_target) {
+    while ((error_target_quantile < base_quantile_target) && (cr_lo >= 1./2)) {
         cr_lo /= 2;
         error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
 #ifdef DEBUG
@@ -364,7 +366,7 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
 #endif
     }
     error_target_quantile = error_target_quantile_prev;
-    while (error_target_quantile >= base_quantile_target) {
+    while ((error_target_quantile >= base_quantile_target) && (cr_hi <= 1000)) {
         cr_hi *= 2;
         error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_hi, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
 #ifdef DEBUG
@@ -372,6 +374,15 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
         fflush(stdout);
 #endif
     }
+
+    if (error_target_quantile >= base_quantile_target) {
+#ifdef DEBUG
+        printf("cr_hi: %f exceeds 1000, while base compression still feasible, stay at this level\n", cr_hi);
+        fflush(stdout);
+#endif
+        return cr_hi;
+    }
+
     error_target_quantile = error_target_quantile_prev;
 
     assert(cr_lo <= cr_hi);
@@ -397,10 +408,20 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
 
 }
 
+void check_nan_inf(const float *data, const size_t tot_size) {
+    for (size_t i = 0; i < tot_size; ++i) {
+        if (isnan(data[i]) || isinf(data[i])) {
+            fprintf(stderr, "NaN or Inf found in data at index %lu\n", i);
+            exit(1);
+        }
+    }
+}
+
 size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **out_buffer) {
 #ifdef DEBUG
     print_config(config);
 #endif
+
     codec_data_buffer_t codec_data_buffer;
     codec_data_buffer_init(&codec_data_buffer);
 
@@ -416,26 +437,31 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
     // find maxval and minval
     size_t tot_size = n_tiles * tile_size;
-    float minval = data[0], maxval = data[0];
-    for (size_t i = 1; i < tot_size; ++i) {
-        if (data[i] < minval) {
-            minval = data[i];
-        } else if (data[i] > maxval) {
-            maxval = data[i];
-        }
-    }
+    check_nan_inf(data, tot_size);
 
-    // scale data to uint16_t
-    uint16_t *scaled_data = (uint16_t *) malloc(tot_size * sizeof(uint16_t));
-    for (size_t i = 0; i < tot_size; ++i) {
-        scaled_data[i] = ((data[i] - minval) / (maxval - minval)) * (uint16_t)-1;
-    }
+    float minval, maxval;
+    findMinMaxf(data, tot_size, &minval, &maxval);
 
-    // encode using jpeg2000
-    j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
+    int const_field = minval == maxval;
 
+#ifdef DEBUG
+    printf("minval: %f, maxval: %f\n", minval, maxval);
+#endif
     
-    codec_data_buffer_reset(&codec_data_buffer);
+    uint16_t *scaled_data;
+
+    if (!const_field) {
+        // scale data to uint16_t
+        scaled_data = (uint16_t *) malloc(tot_size * sizeof(uint16_t));
+        for (size_t i = 0; i < tot_size; ++i) {
+            scaled_data[i] = ((data[i] - minval) / (maxval - minval)) * (uint16_t)-1;
+        }
+
+        // encode using jpeg2000
+        j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
+
+        codec_data_buffer_reset(&codec_data_buffer);
+    }
 
     size_t compressed_size = 0;
     uint8_t *compressed_coefficients = NULL;
@@ -447,7 +473,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 #ifdef DEBUG
     printf("1 - base_quantile_target: %.1e\n", 1-base_quantile_target);
 #endif
-    if (config->residual_compression_type != NONE) {
+    if ((config->residual_compression_type != NONE) && !const_field) {
         // decode back the image
         float *residual = (float *) malloc(tot_size * sizeof(float));
         float *residual_norm = (float *) malloc(tot_size * sizeof(float));
@@ -560,7 +586,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             
         }
 
-        free(scaled_data);
+        if (!const_field) free(scaled_data);
 
         if (coeffs_size <= 16) coeffs_size = 0;
         
@@ -579,12 +605,14 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
         free(decoded);
     }
 
+    size_t codec_size = (const_field) ? sizeof(size_t) : codec_data_buffer.length; /*Only output array length if having a constant field*/
+
     size_t out_size =
             2 * sizeof(float) /* minval and maxval */ +
             sizeof(size_t) + /* coeffs size */
             2 * sizeof(float) /* residual_minval, residual_maxval */ +
             sizeof(size_t) /* compressed_size */ + 
-            compressed_size + codec_data_buffer.length;
+            compressed_size + codec_size;
     *out_buffer = (uint8_t *) malloc(out_size);
 
     uint8_t *iter = *out_buffer;
@@ -602,9 +630,12 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     iter += sizeof(size_t);
     memcpy(iter, compressed_coefficients, compressed_size);
     iter += compressed_size;
-    memcpy(iter, codec_data_buffer.buffer, codec_data_buffer.length);
-
-    assert(iter - *out_buffer == out_size - codec_data_buffer.length);
+    if (const_field) {
+        memcpy(iter, &tot_size, sizeof(size_t));
+    } else {
+        memcpy(iter, codec_data_buffer.buffer, codec_data_buffer.length);
+    }
+    assert(iter - *out_buffer == out_size - codec_size);
 
     if (compressed_coefficients) free(compressed_coefficients);
 
@@ -661,7 +692,7 @@ void j2k_decode_internal(float **data, size_t *height, size_t *width, float minv
 
 size_t decode_climate_variable(uint8_t *data, size_t data_size, float **out_buffer) {
     codec_data_buffer_t codec_data_buffer;
-
+    size_t tot_size = 0;
     uint8_t *iter = data;
     float minval = *((float *) iter);
     iter += sizeof(float);
@@ -678,15 +709,23 @@ size_t decode_climate_variable(uint8_t *data, size_t data_size, float **out_buff
     uint8_t *coefficient_data = iter;
     iter += compressed_coefficient_size;
 
-    codec_data_buffer.buffer = iter;
-    codec_data_buffer.size = data_size - (iter - data);
-    codec_data_buffer.length = data_size - (iter - data);
-    codec_data_buffer.offset = 0;
-
     size_t height, width;
-    j2k_decode_internal(out_buffer, &height, &width, minval, maxval, &codec_data_buffer);
-
-    size_t tot_size = height * width;
+    int const_field = minval == maxval;
+    if (const_field) {
+        tot_size = *((size_t *) iter);
+        iter += sizeof(size_t);
+        *out_buffer = (float *) malloc(tot_size * sizeof(float));
+        for (size_t i = 0; i < tot_size; ++i) {
+            (*out_buffer)[i] = minval;
+        }
+    } else {
+        codec_data_buffer.buffer = iter;
+        codec_data_buffer.size = data_size - (iter - data);
+        codec_data_buffer.length = data_size - (iter - data);
+        codec_data_buffer.offset = 0;
+        j2k_decode_internal(out_buffer, &height, &width, minval, maxval, &codec_data_buffer);
+        tot_size = height * width;
+    }
 
     if (compressed_coefficient_size > 0 && coeffs_size > 0) {
         uint8_t *coeffs = (uint8_t *) calloc(coeffs_size, sizeof(uint8_t));

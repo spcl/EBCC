@@ -17,6 +17,7 @@ except:
 f = h5py.File(f'data/test.hdf5', 'a')
 
 data = np.load(f'data/test_data.npy')
+#data = np.zeros((721, 1440)) + 99
 
 jp2spwv_filter = JP2SPWV_Filter(
     base_cr=100, # base compression ratio
@@ -31,15 +32,20 @@ jp2spwv_filter = JP2SPWV_Filter(
     # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression
 
 print(dict(jp2spwv_filter))
-f.create_dataset('compressed', shape=data.shape, dtype=data.dtype, **jp2spwv_filter)
+f.create_dataset('compressed', shape=data.shape,  **jp2spwv_filter)
 
 f['compressed'][:] = data
 uncompressed = f['compressed'][:]
 
 # check if error target is correctly enforced
 #max_error = np.max(np.abs(data - uncompressed) / np.abs(data))
-max_error = np.max(np.abs(data - uncompressed)) / (np.max(data) - np.min(data))
-print('achieved max relative error:', max_error)
+data_range = (np.max(data) - np.min(data))
+max_error = np.max(np.abs(data - uncompressed))
+if data_range > 0:
+    rel_error = max_error / data_range
+    print('achieved max relative error:', rel_error)
+else:
+    print('achieved max absolute error:', max_error)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, layout='constrained')
 ax1.imshow(data)

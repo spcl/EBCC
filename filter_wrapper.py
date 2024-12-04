@@ -53,6 +53,7 @@ class JP2SPWV_Filter(Mapping):
     @property
     def _kwargs(self):
         return {
+            'dtype': 'float32',
             'chunks': self.chunks,
             'compression': self.FILTER_ID,
             'compression_opts': self.hdf_filter_opts
