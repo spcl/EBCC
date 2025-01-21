@@ -5,7 +5,10 @@
 #include <assert.h>
 //#include "wavelet.h"
 #include "spiht.h"
+#include "spiht_re.h"
 #include <math.h>
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 void loadPGM(const char *filename, size_t *width, size_t *height, unsigned int *maxVal, void **data) {
     FILE *file = fopen(filename, "rb");
@@ -116,18 +119,41 @@ void findMinMaxf(const float *array, size_t size, float *min, float *max) {
     *max = max_val;
 }
 
+void print_bytes(uint8_t *buf, size_t size) {
+    for (size_t i = 0; i < size; ++i) {
+        if (i % 16 == 0) {
+            printf("\n");
+        }
+        printf("%02X ", buf[i]);
+    }
+    printf("\n");
+}
+
+void compare_bytes(uint8_t *buf1, uint8_t *buf2, size_t size) {
+    bool_t flag = 0;
+    for (size_t i = 0; i < size; ++i) {
+        if (buf1[i] != buf2[i]) {
+            printf("Mismatch at index %lu: %02X != %02X\n", i, buf1[i], buf2[i]);
+            flag = 1;
+        }
+    }
+    if (!flag) {
+        printf("No mismatch found\n");
+    }
+}
+
 //TODO: scaling 127 or 255 makes difference
 //TODO: test higher num_stages (= 6) -> no difference
 //TODO: original encoder + new decoder, original decoder + new encoder
 
 int main() {
     const char *filename = "frame.pgm";
-    size_t width, height, coeff_size, wavelet_levels = 6;// 3;
+    size_t width, height, coeff_size, coeff_size2, wavelet_levels = 6;// 3;
     unsigned int maxVal;
     uint16_t *data, min_c=65534, max_c=65534;
     double *floatData, *reconData, *coeff, scale = 1.0, max_error = 0.0;
     float *floatDataf, *floatDataf_norm, *reconDataf, minValf, maxValf, reconMin, reconMax;
-    uint8_t *coeff_buf;
+    uint8_t *coeff_buf, *coeff_buf2;
 
     loadPGM(filename, &width, &height, &maxVal, (void**)&data);
     assert((maxVal >= 256u) && (maxVal < 65536u));
@@ -153,6 +179,13 @@ int main() {
 
     // wavelib_forward_double(floatData, height, width, wavelet_levels, &coeff, &coeff_size);
     spiht_encode(floatDataf_norm, height, width, &coeff_buf, &coeff_size, wavelet_levels);
+    encode_image(floatDataf_norm, height, width, &coeff_buf2, &coeff_size2, 0, wavelet_levels);
+    printf("Coeff size (imshrinker): %lu, Coeff size (ReImpl): %lu\n", coeff_size, coeff_size2);
+    compare_bytes(coeff_buf, coeff_buf2, MIN(coeff_size, coeff_size2));
+    printf("============Bytes of Imshrinker============\n");
+    print_bytes(coeff_buf, 256);
+    printf("============Bytes of ReImpl============\n");
+    print_bytes(coeff_buf2, 256);
     //spiht_encode_file("frame.pgm", &coeff_buf, &coeff_size, 8.0);
     reconDataf = (float *)calloc(width * height, sizeof(float));
     spiht_decode(coeff_buf, coeff_size, reconDataf, height, width, coeff_size*8);
