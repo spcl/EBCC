@@ -5,7 +5,6 @@
 #include <time.h>
 
 #include "openjpeg.h"
-#include "quantile.h"
 #include "zstd.h"
 #include <assert.h>
 #include <malloc.h>
