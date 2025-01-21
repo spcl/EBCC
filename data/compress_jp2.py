@@ -1,4 +1,5 @@
 import os
+import pyproj # Avoids HDF5 plugin error
 base_folder = "/home/huanglangwen/Documents/compression-filter"
 os.environ["HDF5_PLUGIN_PATH"] = os.path.join(base_folder, 'src/build/lib')
 import sys
@@ -24,7 +25,9 @@ jp2spwv_filter = JP2SPWV_Filter(
     # `("quantile_target", xxx)` : specifies the quantile used to sparsify the wavelet transformed residual
     # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression
 
-data_comp = f.create_dataset('z', shape=data.shape, dtype=np.float32, **jp2spwv_filter)
+jp2spwv_filter = dict(jp2spwv_filter)
+dtype = jp2spwv_filter.pop('dtype')
+data_comp = f.create_dataset('z', shape=data.shape, dtype=dtype, **jp2spwv_filter)
 f['z'][...] = data[...]
 #for name,val in data.attrs.items():
 #    data_comp.attrs[name] = val

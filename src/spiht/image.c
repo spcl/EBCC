@@ -152,7 +152,7 @@ int main() {
     unsigned int maxVal;
     uint16_t *data, min_c=65534, max_c=65534;
     double *floatData, *reconData, *coeff, scale = 1.0, max_error = 0.0;
-    float *floatDataf, *floatDataf_norm, *reconDataf, minValf, maxValf, reconMin, reconMax;
+    float *floatDataf, *floatDataf_norm, *reconDataf, *reconDataf2, minValf, maxValf, reconMin, reconMax;
     uint8_t *coeff_buf, *coeff_buf2;
 
     loadPGM(filename, &width, &height, &maxVal, (void**)&data);
@@ -178,8 +178,8 @@ int main() {
     printf("Actual Min: %u, Max: %u\n", min_c, max_c);
 
     // wavelib_forward_double(floatData, height, width, wavelet_levels, &coeff, &coeff_size);
-    spiht_encode(floatDataf_norm, height, width, &coeff_buf, &coeff_size, wavelet_levels);
-    encode_image(floatDataf_norm, height, width, &coeff_buf2, &coeff_size2, 0, wavelet_levels);
+    spiht_encode_ims(floatDataf_norm, height, width, &coeff_buf, &coeff_size, wavelet_levels);
+    spiht_encode(floatDataf_norm, height, width, &coeff_buf2, &coeff_size2, 0, wavelet_levels);
     printf("Coeff size (imshrinker): %lu, Coeff size (ReImpl): %lu\n", coeff_size, coeff_size2);
     compare_bytes(coeff_buf, coeff_buf2, MIN(coeff_size, coeff_size2));
     printf("============Bytes of Imshrinker============\n");
@@ -188,9 +188,13 @@ int main() {
     print_bytes(coeff_buf2, 256);
     //spiht_encode_file("frame.pgm", &coeff_buf, &coeff_size, 8.0);
     reconDataf = (float *)calloc(width * height, sizeof(float));
-    spiht_decode(coeff_buf, coeff_size, reconDataf, height, width, coeff_size*8);
+    reconDataf2 = (float *)calloc(width * height, sizeof(float));
+    spiht_decode_ims(coeff_buf, coeff_size, reconDataf, height, width, coeff_size*8);
+    spiht_decode(coeff_buf2, coeff_size2, reconDataf2, height, width, coeff_size2*8);
     //spiht_decode_file(coeff_buf, coeff_size, "recon_imshrinker.pgm");
     // wavelib_backward_double(reconData, height, width, wavelet_levels, coeff);
+
+    compare_bytes((uint8_t *)reconDataf, (uint8_t *)reconDataf2, width*height*sizeof(float));
 
     for (size_t i = 0; i < width * height; ++i) {
         if (reconDataf[i] < 0.0) {
@@ -219,5 +223,6 @@ int main() {
     free(floatDataf_norm);
     free(reconDataf);
     free(coeff_buf);
+    free(coeff_buf2);
     return 0;
 }

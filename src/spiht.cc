@@ -4,13 +4,13 @@
 #include "spiht.h"
 
 
-extern "C" void spiht_encode(float *buffer, size_t height, size_t width, uint8_t **out_buffer, size_t *output_size, size_t trunc_bits, int num_stages) {
+extern "C" void spiht_encode_ims(float *buffer, size_t height, size_t width, uint8_t **out_buffer, size_t *output_size, size_t trunc_bits, int num_stages) {
     Encoder encoder;
     encoder.encode_image(buffer, height, width, out_buffer, output_size, trunc_bits, num_stages);
 }
 
 
-extern "C" void spiht_decode(uint8_t *buffer, size_t size, float *out_buffer, size_t height, size_t width, int num_bits) {
+extern "C" void spiht_decode_ims(uint8_t *buffer, size_t size, float *out_buffer, size_t height, size_t width, int num_bits) {
     Decoder decoder;
     decoder.decode_image(buffer, size, out_buffer, height, width, num_bits);
 }

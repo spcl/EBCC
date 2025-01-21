@@ -1,4 +1,5 @@
 import os
+import pyproj # Avoids HDF5 plugin error
 base_folder = "/home/huanglangwen/Documents/compression-filter"
 #os.environ["HDF5_PLUGIN_PATH"] = str(os.path.join(base_folder, 'src/build/lib')) + ":" + str(plugins_folder)
 os.environ["HDF5_PLUGIN_PATH"] = str(os.path.join(base_folder, 'src/build/lib'))

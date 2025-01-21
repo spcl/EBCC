@@ -10,7 +10,7 @@
 #include "zstd.h"
 #include <assert.h>
 #include <malloc.h>
-#include "spiht.h"
+#include "spiht_re.h"
 
 #define MIN(x, y) ((x)<(y)?(x):(y))
 #define CEIL(x,y) (((x) + (y) - 1) / (y))
