@@ -5,7 +5,6 @@
 #include <time.h>
 
 #include "openjpeg.h"
-#include "wavelet.h"
 #include "quantile.h"
 #include "zstd.h"
 #include <assert.h>
@@ -288,52 +287,6 @@ void findMinMaxf(const float *array, size_t size, float *min, float *max) {
     }
     *min = min_val;
     *max = max_val;
-}
-
-void sparsify_coefficients(const double *coeffs, double *coeffs_copy, const size_t coeffs_size, float *residual, const size_t image_dims[2], 
-                           const float *data, const float *decoded, const codec_config_t *config, const size_t tot_size) {
-    float residual_cr = 2000; /*50*/
-    float cur_max_error = 0, best_max_error = 0;
-    double quantile, data_range = 1.0, *coeffs_best;
-
-    coeffs_best = (double *) malloc(coeffs_size * sizeof(double));
-
-    memset(coeffs_copy, 0, coeffs_size * sizeof(double));
-    memset(coeffs_best, 0, coeffs_size * sizeof(double));
-    if (config->residual_compression_type == RELATIVE_ERROR) {
-        data_range = get_data_range(data, tot_size);
-        cur_max_error = get_max_relative_error(data, decoded, NULL, tot_size, data_range);
-    } else {
-        cur_max_error = get_max_error(data, decoded, NULL, tot_size);
-    }
-    best_max_error = cur_max_error;
-
-    while (cur_max_error > config->error && residual_cr >= STOP_CR) {
-        memcpy(coeffs_copy, coeffs, coeffs_size * sizeof(double));
-        double q_ratio = 1. - (1. / residual_cr);
-        quantile = zero_out_quantile(coeffs_copy, coeffs_size, q_ratio);
-        wavelib_backward(residual, image_dims[0], image_dims[1], WAVELET_LEVELS, coeffs_copy);
-
-        if (config->residual_compression_type == RELATIVE_ERROR) {
-            cur_max_error = get_max_relative_error(data, decoded, residual, tot_size, data_range);
-        } else {
-            cur_max_error = get_max_error(data, decoded, residual, tot_size);
-        }
-        if (cur_max_error < best_max_error) {
-            best_max_error = cur_max_error;
-            memcpy(coeffs_best, coeffs_copy, coeffs_size * sizeof(double));
-        }
-#ifdef DEBUG
-        printf("Current max error: %f (ABS %f), residual_cr: %f\n", cur_max_error, cur_max_error*data_range, residual_cr);
-#endif
-        residual_cr /= sqrtf(2.f);
-    } 
-
-    if (cur_max_error > config->error) {
-        fprintf(stderr, "Could not reach error target of %f (%f instead).\n", config->error, best_max_error);
-        memcpy(coeffs_copy, coeffs_best, coeffs_size * sizeof(double));
-    }
-    free(coeffs_best);
 }
 
 double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr, 
