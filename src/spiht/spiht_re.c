@@ -1,3 +1,4 @@
+/* Re-implementation of René Puchinger's SPIHT program: https://github.com/gilson27/imshrinker */
 #include "spiht_re.h"
 #include "dwt.h"
 
