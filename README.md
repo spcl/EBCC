@@ -1,3 +1,6 @@
+EBCC: Error Bounded Climate Compressor
+======================================
+
 # How to install
 Install required packages: `hdf5-devel, libstdc++-static`. Then:
 ```
