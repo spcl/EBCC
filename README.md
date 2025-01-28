@@ -2,7 +2,7 @@ EBCC: Error Bounded Climate Compressor
 ======================================
 
 # How to install
-Install required packages: `hdf5-devel, libstdc++-static`. Then:
+Install required packages: `hdf5-devel`. Then:
 ```
 git clone --recurse-submodules https://github.com/luigifusco/compression-filter.git
 mkdir compression-filter/src/build
