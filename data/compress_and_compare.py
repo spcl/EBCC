@@ -77,7 +77,7 @@ def compress_and_compare(ds, var, level, output_folder, method, rel_target):
     stats = []
     data_range = (da.max(dim=["latitude", "longitude"]) - da.min(dim=["latitude", "longitude"])).mean().item()
     abs_target = data_range * rel_target
-    print(f"Compressing {var} with {method}, relative error {rel_target}, absolute error {abs_target}", flush=True)
+    print(f"Compressing {var}@{level} with {method}, relative error {rel_target}, absolute error {abs_target}", flush=True)
     encoding = prepare_encoding(method, abs_target, height, width, data_dim)
     output_path = os.path.join(output_folder, output_name)
     compress(da, var, output_path, encoding)

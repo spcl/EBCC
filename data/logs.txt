@@ -1,0 +1,30 @@
+
+
+
+# without pure jp2 fallback
+1e-6    SZ      SZ3     SZ3     JP2SPWV SPERR
+Size    3.42MB  1.21MB  1.86MB  1.85MB  6.18MB
+RMSE    5.689   3.787   2.850   1.606   3.009
+MAX     10.016  10.265  7.100   9.987   10.013
+
+
+# with pure jp2 fall back
+0       SZ      SZ3     SZ3     JP2SPWV SPERR
+Size    3.42MB  1.21MB  1.86MB  1.93MB  6.18MB
+RMSE    5.689   3.787   2.850   1.562   3.009
+MAX     10.016  10.265  7.100   9.966   10.013
+
+1e-6    SZ      SZ3     SZ3     JP2SPWV SPERR
+Size    3.42MB  1.21MB  1.86MB  1.81MB  6.18MB
+RMSE    5.689   3.787   2.850   1.608   3.009
+MAX     10.016  10.265  7.100   9.979   10.013
+
+1e-5    SZ      SZ3     SZ3     JP2SPWV SPERR
+Size    3.42MB  1.21MB  1.86MB  1.78MB  6.18MB
+RMSE    5.689   3.787   2.850   1.647   3.009
+MAX     10.016  10.265  7.100   9.987   10.013
+
+1e-4    SZ      SZ3     SZ3     JP2SPWV SPERR
+Size    3.42MB  1.21MB  1.86MB  1.91MB  6.18MB
+RMSE    5.689   3.787   2.850   1.573   3.009
+MAX     10.016  10.265  7.100   9.966   10.013

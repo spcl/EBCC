@@ -572,9 +572,10 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
         /* Try again with pure j2k compression , to see if adding residual compression has higher compression ratio */
         jp2_buffer_length = codec_data_buffer.length;
-        jp2_buffer = (uint8_t *) malloc(compressed_size + jp2_buffer_length);
+        size_t jp2_buffer_size_limit = 2 * (compressed_size + jp2_buffer_length);
+        jp2_buffer = (uint8_t *) malloc(jp2_buffer_size_limit);
         memcpy(jp2_buffer, codec_data_buffer.buffer, jp2_buffer_length);
-        if (! pure_j2k_done && (config->residual_compression_type == MAX_ERROR ||
+        if (! pure_j2k_done && (coeffs_size > 0) && (config->residual_compression_type == MAX_ERROR ||
             config->residual_compression_type == RELATIVE_ERROR)) {
             assert(error_target > 0);
             error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
@@ -586,6 +587,10 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 #endif
                 compressed_size = 0;
                 coeffs_size = 0;
+                if (codec_data_buffer.length > jp2_buffer_size_limit) { /* This can happen when pure_j2k_required enabled */
+                    free(jp2_buffer);
+                    jp2_buffer = (uint8_t *) malloc(codec_data_buffer.length);
+                }
                 jp2_buffer_length = codec_data_buffer.length;
                 memcpy(jp2_buffer, codec_data_buffer.buffer, jp2_buffer_length);
             }
@@ -598,7 +603,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
     if (!const_field) free(scaled_data);
 
-    size_t codec_size = (const_field) ? sizeof(size_t) : codec_data_buffer.length; /*Only output array length if having a constant field*/
+    size_t codec_size = (const_field) ? sizeof(size_t) : jp2_buffer_length; /*Only output array length if having a constant field*/
 
     size_t out_size =
             2 * sizeof(float) /* minval and maxval */ +
