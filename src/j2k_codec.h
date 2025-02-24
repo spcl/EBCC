@@ -12,6 +12,8 @@
 
 #define MIN(x, y) ((x)<(y)?(x):(y))
 #define CEIL(x,y) (((x) + (y) - 1) / (y))
+#define TRUE 1
+#define FALSE 0
 
 #define WAVELET_LEVELS 3
 
@@ -306,6 +308,10 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
     double error_target_quantile = get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
     double error_target_quantile_prev = error_target_quantile;
     double eps = 1e-8;
+#ifdef DEBUG
+    printf("current_cr: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", current_cr, 1-error_target_quantile, codec_data_buffer->length);
+    fflush(stdout);
+#endif
     /* TODO: log down best feasible cr!, best feasible error*/
     /* TODO: take error target quantile from env*/
     /* TODO: log according to env, with log.c */
@@ -342,7 +348,7 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
         current_cr = (cr_lo + cr_hi) / 2;
         error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
 #ifdef DEBUG
-        printf("current_cr: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", current_cr, 1-error_target_quantile, codec_data_buffer->length);
+        printf("current_cr: %f, cr_lo: %f, cr_hi: %f, 1-error_target_quantile: %.1e, jp2_length: %lu\n", current_cr, cr_lo, cr_hi, 1-error_target_quantile, codec_data_buffer->length);
         fflush(stdout);
 #endif
         if (error_target_quantile < base_quantile_target) {
@@ -370,9 +376,29 @@ void check_nan_inf(const float *data, const size_t tot_size) {
 }
 
 size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **out_buffer) {
+    int pure_j2k_required = FALSE, pure_j2k_done = FALSE;
+    size_t compressed_size = 0, jp2_buffer_length = 0;
+    uint8_t *compressed_coefficients = NULL;
+    uint8_t *coeffs_buf = NULL;
+    uint8_t *jp2_buffer = NULL; 
+    float residual_maxval = 0., residual_minval = 0., error_target = -1, current_cr = -1;
+    size_t coeffs_size = 0, coeffs_size_orig = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
+    double trunc_hi, trunc_lo, best_feasible_trunc;
+    double quantile = config->quantile, eps = 1e-8, base_error_quantile=1e-6;
+
+    // Load base_error_quantile from env var EBCC_INIT_BASE_ERROR_QUANTILE, default to 1e-6 if not set
+    
+    const char *env = getenv("EBCC_INIT_BASE_ERROR_QUANTILE");
+    if (env) {
+        base_error_quantile = strtod(env, NULL);
+    }
+    double base_quantile_target = 1 - base_error_quantile;
+
 #ifdef DEBUG
     print_config(config);
+    printf("1 - base_quantile_target: %.1e\n", 1-base_quantile_target);
 #endif
+
 
     codec_data_buffer_t codec_data_buffer;
     codec_data_buffer_init(&codec_data_buffer);
@@ -399,7 +425,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 #ifdef DEBUG
     printf("minval: %f, maxval: %f\n", minval, maxval);
 #endif
-    
+
     uint16_t *scaled_data;
 
     if (!const_field) {
@@ -411,20 +437,13 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
         // encode using jpeg2000
         j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
-
+        if (config->residual_compression_type == NONE) {
+            memcpy(jp2_buffer, codec_data_buffer.buffer, codec_data_buffer.length);
+            jp2_buffer_length = codec_data_buffer.length;
+        }
         codec_data_buffer_reset(&codec_data_buffer);
     }
 
-    size_t compressed_size = 0;
-    uint8_t *compressed_coefficients = NULL;
-    uint8_t *coeffs_buf = NULL;
-    float residual_maxval = 0., residual_minval = 0.;
-    size_t coeffs_size = 0, coeffs_size_orig = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
-    double trunc_hi, trunc_lo, best_feasible_trunc;
-    double quantile = config->quantile, base_quantile_target = 1-1e-6, eps=1e-8;
-#ifdef DEBUG
-    printf("1 - base_quantile_target: %.1e\n", 1-base_quantile_target);
-#endif
     if ((config->residual_compression_type != NONE) && !const_field) {
         // decode back the image
         float *residual = (float *) malloc(tot_size * sizeof(float));
@@ -452,7 +471,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             coeffs_size = coeffs_size_orig;
         } else if (config->residual_compression_type == MAX_ERROR ||
                 config->residual_compression_type == RELATIVE_ERROR) {
-            float error_target = config->error, current_cr = config->base_cr;
+            error_target = config->error, current_cr = config->base_cr;
             if (config->residual_compression_type == RELATIVE_ERROR) {
                 error_target *= get_data_range(data, tot_size);
             }
@@ -467,6 +486,8 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             float cur_max_error = fmaxf(fabsf(residual_minval), fabsf(residual_maxval));
             float best_feasible_error = -1;
             int skip_residual = cur_max_error <= error_target;
+            pure_j2k_done = cur_max_error <= error_target;
+            
 
             if (!skip_residual) {
                 for (size_t i = 0; i < tot_size; ++i) {
@@ -482,9 +503,9 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                 cur_max_error = get_max_error(data, decoded, residual, tot_size);
                 if (cur_max_error > error_target) {
                     fprintf(stderr, "Could not reach error target of %f (%f instead), base compression max error: %f. Retry with pure base compression.\n", error_target, cur_max_error, fmaxf(fabsf(residual_minval), fabsf(residual_maxval)));
-                    skip_residual = 1;
+                    skip_residual = TRUE;
+                    pure_j2k_required = TRUE;
                     /*DONE: if this happen, go for full jpeg2000*/
-                    current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr*0.8, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
                 } else {
                     best_feasible_error = cur_max_error;
                 }
@@ -538,8 +559,6 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             
         }
 
-        if (!const_field) free(scaled_data);
-
         if (coeffs_size <= 16) coeffs_size = 0;
         
         if (coeffs_size > 0) {
@@ -551,11 +570,33 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
         printf("coeffs_size: %lu, compressed_size: %lu, jp2_length: %lu, compression ratio: %f\n", coeffs_size, compressed_size, codec_data_buffer.length, (float) (tot_size * sizeof(float)) / (compressed_size + codec_data_buffer.length));
 #endif
 
+        /* Try again with pure j2k compression , to see if adding residual compression has higher compression ratio */
+        jp2_buffer_length = codec_data_buffer.length;
+        jp2_buffer = (uint8_t *) malloc(compressed_size + jp2_buffer_length);
+        memcpy(jp2_buffer, codec_data_buffer.buffer, jp2_buffer_length);
+        if (! pure_j2k_done && (config->residual_compression_type == MAX_ERROR ||
+            config->residual_compression_type == RELATIVE_ERROR)) {
+            assert(error_target > 0);
+            error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
+            if ((codec_data_buffer.length < compressed_size + jp2_buffer_length) || pure_j2k_required) {
+                /* Pure JP2 is better than JP2 + SPWV */
+#ifdef DEBUG
+                printf("Pure JP2 (%lu) is better than JP2 (%lu) + SPWV (%lu) (sum: %lu)\n", codec_data_buffer.length, jp2_buffer_length, compressed_size, compressed_size + jp2_buffer_length);
+                fflush(stdout);
+#endif
+                compressed_size = 0;
+                coeffs_size = 0;
+                jp2_buffer_length = codec_data_buffer.length;
+                memcpy(jp2_buffer, codec_data_buffer.buffer, jp2_buffer_length);
+            }
+        }
         free(coeffs_buf);
         free(residual);
         free(residual_norm);
         free(decoded);
     }
+
+    if (!const_field) free(scaled_data);
 
     size_t codec_size = (const_field) ? sizeof(size_t) : codec_data_buffer.length; /*Only output array length if having a constant field*/
 
@@ -580,16 +621,19 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     iter += sizeof(float);
     memcpy(iter, &compressed_size, sizeof(size_t));
     iter += sizeof(size_t);
-    memcpy(iter, compressed_coefficients, compressed_size);
-    iter += compressed_size;
+    if (compressed_size > 0) {
+        memcpy(iter, compressed_coefficients, compressed_size);
+        iter += compressed_size;
+    }
     if (const_field) {
         memcpy(iter, &tot_size, sizeof(size_t));
     } else {
-        memcpy(iter, codec_data_buffer.buffer, codec_data_buffer.length);
+        memcpy(iter, jp2_buffer, jp2_buffer_length);
     }
     assert(iter - *out_buffer == out_size - codec_size);
 
     if (compressed_coefficients) free(compressed_coefficients);
+    free(jp2_buffer);
 
     codec_data_buffer_destroy(&codec_data_buffer);
 
