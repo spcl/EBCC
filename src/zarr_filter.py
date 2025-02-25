@@ -15,7 +15,7 @@ class CodecConfigT(ctypes.Structure):
         ('quantile', ctypes.c_double),
     ]
 
-class J2KFilter(Codec):
+class EBCCZarrFilter(Codec):
     codec_id = 'j2k_filter'
     
     def __init__(self, arglist):
@@ -81,4 +81,4 @@ class J2KFilter(Codec):
         return cls(config['arglist'])
 
 # Register the custom filter
-numcodecs.register_codec(J2KFilter)
+numcodecs.register_codec(EBCCZarrFilter)
