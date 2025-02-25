@@ -491,7 +491,9 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             float cur_max_error = fmaxf(fabsf(residual_minval), fabsf(residual_maxval));
             float best_feasible_error = -1;
             int skip_residual = cur_max_error <= error_target;
-            pure_j2k_done = cur_max_error <= error_target;
+            pure_j2k_done = base_quantile_target == 1.0;
+
+            if (pure_j2k_done) log_info("Pure JP2 compression is feasible, compression error: %f, cr: %f", cur_max_error, current_cr);
             
 
             if (!skip_residual) {
@@ -575,7 +577,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
         size_t jp2_buffer_size_limit = 2 * (compressed_size + jp2_buffer_length);
         jp2_buffer = (uint8_t *) malloc(jp2_buffer_size_limit);
         memcpy(jp2_buffer, codec_data_buffer.buffer, jp2_buffer_length);
-        if ((! pure_j2k_done) && (! pure_j2k_disabled) && (coeffs_size > 0) && (config->residual_compression_type == MAX_ERROR ||
+        if ((! pure_j2k_done) && (! pure_j2k_disabled) && (config->residual_compression_type == MAX_ERROR ||
             config->residual_compression_type == RELATIVE_ERROR)) {
             assert(error_target > 0);
             error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
