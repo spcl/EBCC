@@ -13,7 +13,7 @@ def float_to_uint32(f):
     packed = struct.pack('f', f)
     return struct.unpack('I', packed)[0]
 
-class JP2SPWV_Filter(Mapping):
+class EBCC_Filter(Mapping):
     FILTER_ID = 308
 
     def __init__(self, base_cr: float, height: int, width: int, residual_opt: Tuple[str, float], data_dim: int = 2, filter_path: str = None):
@@ -112,7 +112,7 @@ if __name__ == "__main__":
         residual_opt_val = 0.01
         residual_type = "relative_error_target"
 
-    jp2spwv_filter = JP2SPWV_Filter(base_cr=args.base_cr, 
+    ebcc_filter = EBCC_Filter(base_cr=args.base_cr, 
                                     height=args.height, 
                                     width=args.width, 
                                     residual_opt=(residual_type, residual_opt_val))
@@ -122,8 +122,8 @@ if __name__ == "__main__":
     print(f"HeightxWidth: {args.height}x{args.width}", file=sys.stderr)
     print(f"Residual option: {residual_type}, {residual_opt_val}", file=sys.stderr)
 
-    opts = ",".join([str(opt) for opt in jp2spwv_filter.hdf_filter_opts])
-    opts = f"{JP2SPWV_Filter.FILTER_ID},{opts}"
+    opts = ",".join([str(opt) for opt in ebcc_filter.hdf_filter_opts])
+    opts = f"{EBCC_Filter.FILTER_ID},{opts}"
 
     if args.help_cdo:
         print(f"Compression using cdo: cdo --filter {opts} copy original.nc compressed.nc")

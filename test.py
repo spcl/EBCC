@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
-from filter_wrapper import JP2SPWV_Filter
+from filter_wrapper import EBCC_Filter
 
 try:
     os.remove(f'data/test.hdf5')
@@ -19,7 +19,7 @@ f = h5py.File(f'data/test.hdf5', 'a')
 data = np.load(f'data/test_data.npy')
 #data = np.zeros((721, 1440)) + 99
 
-jp2spwv_filter = JP2SPWV_Filter(
+ebcc_filter = EBCC_Filter(
     base_cr=100, # base compression ratio
     height=data.shape[0],  # height of each 2D data chunk
     width=data.shape[1],  # width of each 2D data chunk
@@ -31,8 +31,8 @@ jp2spwv_filter = JP2SPWV_Filter(
     # `("quantile_target", xxx)` : specifies the quantile used to sparsify the wavelet transformed residual
     # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression
 
-print(dict(jp2spwv_filter))
-f.create_dataset('compressed', shape=data.shape,  **jp2spwv_filter)
+print(dict(ebcc_filter))
+f.create_dataset('compressed', shape=data.shape,  **ebcc_filter)
 
 f['compressed'][:] = data
 uncompressed = f['compressed'][:]

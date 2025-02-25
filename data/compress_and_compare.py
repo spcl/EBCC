@@ -8,11 +8,11 @@ import h5py
 import numpy as np
 import pandas as pd
 from argparse import ArgumentParser
-from filter_wrapper import JP2SPWV_Filter
+from filter_wrapper import EBCC_Filter
 from tqdm import tqdm
 import hdf5plugin
 
-METHODS = ["sz", "jp2spwv", "sz3", "sperr"]
+METHODS = ["sz", "ebcc", "sz3", "sperr"]
 LEVELS = [1000, 975, 950, 925, 900, 875, 
           850, 825, 800, 775, 750, 700, 
           650, 600, 550, 500, 450, 400, 
@@ -23,8 +23,8 @@ LEVELS = [1000, 975, 950, 925, 900, 875,
 
 def prepare_encoding(method, abs_target, height, width, data_dim):
     #os.environ["HDF5_PLUGIN_PATH"] = hdf5plugin.PLUGIN_PATH
-    if method == "jp2spwv":
-        filter = JP2SPWV_Filter(
+    if method == "ebcc":
+        filter = EBCC_Filter(
             base_cr=30, height=height, width=width,
             data_dim=data_dim, residual_opt=("max_error_target", abs_target),
             filter_path=os.path.join(base_folder, 'src/build/lib'))
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_folder", type=str, default="./compressed")
     parser.add_argument("--rel_target", type=float, default=0.001)
     parser.add_argument("--variable", type=str, default="z")
-    parser.add_argument("--method", type=str, default="jp2spwv")
+    parser.add_argument("--method", type=str, default="ebcc")
     args = parser.parse_args()
     ds_pl = xr.open_dataset(args.input_file_pl)
     ds_sfc = xr.open_dataset(args.input_file_sfc)
@@ -109,4 +109,4 @@ if __name__ == "__main__":
     stats_df = pd.concat(stats_df_list)
     print(stats_df)
 
-#python compress_and_compare.py --rel_target=0.01 --variable=w --method=jp2spwv
+#python compress_and_compare.py --rel_target=0.01 --variable=w --method=ebcc

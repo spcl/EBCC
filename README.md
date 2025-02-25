@@ -21,7 +21,7 @@ The user can also enable a compression of the residual in order to improve accur
 2. `MAX_ERROR`: the residual is wavelet encoded and sparsified. The sparsification factor is found through an iterative process that tries out several factors and selects the largest one that keeps the max error below the selected threshold
 3. `RELATIVE_ERROR`: same as MAX_ERROR, but using the (data-range) relative error instead, rel_error = (x - ref) / (ref.max - ref.min)
 
-The input parameters depend on the chosen mode of operation. As HDF5 filters support integer parameters only, a translation from float and double types to integer representation is required. We provide a python wrapper `JP2SPWV_Filter` in `filter_wrapper.py` to simply the process. An example of how to use the filter using the python `h5py` library can be found in `test.py`
+The input parameters depend on the chosen mode of operation. As HDF5 filters support integer parameters only, a translation from float and double types to integer representation is required. We provide a python wrapper `EBCC_Filter` in `filter_wrapper.py` to simply the process. An example of how to use the filter using the python `h5py` library can be found in `test.py`
 
 # CDO integration
 The latest version of CDO can be downloaded here: `https://code.mpimet.mpg.de/projects/cdo/files`. It can be installed with:
