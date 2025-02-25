@@ -377,7 +377,7 @@ void check_nan_inf(const float *data, const size_t tot_size) {
 }
 
 size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **out_buffer) {
-    int pure_j2k_required = FALSE, pure_j2k_done = FALSE, pure_j2k_disabled = FALSE;
+    int pure_j2k_required = FALSE, pure_j2k_done = FALSE, pure_j2k_disabled = FALSE, pure_j2k_consistency_disabled = FALSE;
     size_t compressed_size = 0, jp2_buffer_length = 0;
     uint8_t *compressed_coefficients = NULL;
     uint8_t *coeffs_buf = NULL;
@@ -393,11 +393,15 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     
     const char *env_base_error_quantile = getenv("EBCC_INIT_BASE_ERROR_QUANTILE");
     const char *env_disable_pure_jp2_fallback = getenv("EBCC_DISABLE_PURE_JP2_FALLBACK");
+    const char *env_disable_pure_jp2_consistency = getenv("EBCC_DISABLE_PURE_JP2_FALLBACK_CONSISTENCY");
     if (env_base_error_quantile) {
         base_error_quantile = strtod(env_base_error_quantile, NULL);
     }
     if (env_disable_pure_jp2_fallback) {
         pure_j2k_disabled = TRUE;
+    }
+    if (env_disable_pure_jp2_consistency) {
+        pure_j2k_consistency_disabled = TRUE;
     }
     double base_quantile_target = 1 - base_error_quantile;
 
@@ -581,11 +585,13 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             config->residual_compression_type == RELATIVE_ERROR)) {
             assert(error_target > 0);
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
-            codec_data_buffer_init(&codec_data_buffer);
-            j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
-            codec_data_buffer_reset(&codec_data_buffer);
-            j2k_decode_internal(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
-            current_cr = config->base_cr;
+            if (!pure_j2k_consistency_disabled) {
+                codec_data_buffer_init(&codec_data_buffer);
+                j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
+                codec_data_buffer_reset(&codec_data_buffer);
+                j2k_decode_internal(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
+                current_cr = config->base_cr;
+            }
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
             error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
 
