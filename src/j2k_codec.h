@@ -580,7 +580,15 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
         if ((! pure_j2k_done) && (! pure_j2k_disabled) && (config->residual_compression_type == MAX_ERROR ||
             config->residual_compression_type == RELATIVE_ERROR)) {
             assert(error_target > 0);
+            /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
+            codec_data_buffer_init(&codec_data_buffer);
+            j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
+            codec_data_buffer_reset(&codec_data_buffer);
+            j2k_decode_internal(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
+            current_cr = config->base_cr;
+            /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
             error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
+
             if ((codec_data_buffer.length < compressed_size + jp2_buffer_length) || pure_j2k_required) {
                 /* Pure JP2 is better than JP2 + SPWV */
                 log_info("Pure JP2 (%lu) is better than JP2 (%lu) + SPWV (%lu) (sum: %lu)", codec_data_buffer.length, jp2_buffer_length, compressed_size, compressed_size + jp2_buffer_length);

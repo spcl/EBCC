@@ -9,7 +9,7 @@ import numpy as np
 from filter_wrapper import EBCC_Filter
 import xarray
 
-f = h5py.File(f'geopotential_pl_small_jp2.nc', 'w')
+f = h5py.File(f'geopotential_pl_small_ebcc.nc', 'w')
 orig = xarray.open_dataset(f'geopotential_pl_small.nc')
 data = orig['z'].data
 
@@ -39,7 +39,7 @@ f['z'][...] = data[...]
 f.close()
 
 original_size = os.path.getsize(f'geopotential_pl_small.nc')
-compressed_size = os.path.getsize(f'geopotential_pl_small_jp2.nc')
+compressed_size = os.path.getsize(f'geopotential_pl_small_ebcc.nc')
 
 print(f'EBCC: achieved compression ratio of {original_size/compressed_size}')
 
