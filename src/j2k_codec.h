@@ -284,8 +284,6 @@ double get_error_target_quantile(const float *data, const float *decoded, const 
     return 1. -  ((double) n / tot_size);
 }
 
-#define STOP_CR 50
-
 void findMinMaxf(const float *array, size_t size, float *min, float *max) {
     float min_val = INFINITY, max_val = -INFINITY;
     if (size == 0) {
