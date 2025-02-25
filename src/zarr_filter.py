@@ -16,7 +16,7 @@ class CodecConfigT(ctypes.Structure):
     ]
 
 class EBCCZarrFilter(Codec):
-    codec_id = 'j2k_filter'
+    codec_id = 'ebcc_filter'
     
     def __init__(self, arglist):
         self.arglist = np.array(arglist, dtype=np.uint32)
