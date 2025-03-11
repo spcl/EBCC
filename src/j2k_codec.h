@@ -218,6 +218,7 @@ void log_set_level_from_env() {
     const char *env_log_level = getenv("EBCC_LOG_LEVEL");
 #ifdef DEBUG
     log_set_level(0); /* Default to TRACE */
+    log_info("DEBUG flag enabled in compilation");
 #else
     log_set_level(3); /* Default to WARN */
 #endif
