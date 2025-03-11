@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-b', '--base_cr', type=str, default=200, help='base compression ratio')
     parser.add_argument('-H', '--height', type=int, default=721, help='height of the data slice or size of latitude dim')
-    parser.add_argument('-w', '--width', type=int, default=1440, help='width of the data slice or size of longitude dim')
+    parser.add_argument('-W', '--width', type=int, default=1440, help='width of the data slice or size of longitude dim')
     parser.add_argument('-m', '--max_error_target', default=None, type=float, help='max error target')
     parser.add_argument('-r', '--relative_error_target', default=None, type=float, help='relative error target')
     parser.add_argument('-q', '--quantile_target', default=None, type=float, help='[DEPRECATED!] quantile target')
@@ -126,6 +126,7 @@ if __name__ == "__main__":
     opts = f"{EBCC_Filter.FILTER_ID},{opts}"
 
     if args.help_cdo:
-        print(f"Compression using cdo: cdo --filter {opts} copy original.nc compressed.nc")
+        print(f"Compression using cdo: cdo -b F32 -f nc4 --filter {opts} copy original.nc compressed.nc")
+        print(f"Make sure to check chunksize of original.nc divides the tile size {args.height}x{args.width}")
 
     print(opts)

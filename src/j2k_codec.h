@@ -216,7 +216,11 @@ void print_config(codec_config_t *config) {
 
 void log_set_level_from_env() {
     const char *env_log_level = getenv("EBCC_LOG_LEVEL");
+#ifdef DEBUG
+    log_set_level(0); /* Default to TRACE */
+#else
     log_set_level(3); /* Default to WARN */
+#endif
     if (env_log_level) {
         char *endptr;
         int log_level = strtol(env_log_level, &endptr, 10);
@@ -433,7 +437,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
     int const_field = minval == maxval;
 
-    log_trace("minval: %f, maxval: %f", minval, maxval);
+    log_trace("minval: %e, maxval: %e, const_field: %s", minval, maxval, const_field ? "TRUE" : "FALSE");
 
     uint16_t *scaled_data;
 
