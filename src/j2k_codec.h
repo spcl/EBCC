@@ -264,7 +264,7 @@ float get_max_error(const float *data, const float *decoded, const float *residu
     float cur_max_error = 0;
     for (size_t i = 0; i < tot_size; ++i) {
         float residual_value = residual ? residual[i] : 0;
-        float cur_error = fabsf(data[i] - decoded[i] - residual_value);
+        float cur_error = fabsf(data[i] - (decoded[i] + residual_value));
         /* this is pointwise relative error
         if (error_type == RELATIVE_ERROR) {
             cur_error /= fabsf(data[i]);
@@ -281,7 +281,7 @@ double get_error_target_quantile(const float *data, const float *decoded, const 
     size_t n = 0;
     for (size_t i = 0; i < tot_size; ++i) {
         float residual_value = residual ? residual[i] : 0;
-        float cur_error = fabsf(data[i] - decoded[i] - residual_value);
+        float cur_error = fabsf(data[i] - (decoded[i] + residual_value));
         if (cur_error > error_target) {
             n++;
         }
