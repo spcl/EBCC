@@ -8,7 +8,11 @@
 #include "openjpeg.h"
 #include "zstd.h"
 #include <assert.h>
+#ifdef __linux__
 #include <malloc.h>
+#else
+#include <stdlib.h>
+#endif
 #include "spiht_re.h"
 
 
