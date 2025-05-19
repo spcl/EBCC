@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import xarray as xr
 from numcodecs.abc import Codec
@@ -20,8 +21,14 @@ class EBCCZarrFilter(Codec):
     
     def __init__(self, arglist):
         self.arglist = np.array(arglist, dtype=np.uint32)
-        self.c_stdlib = ctypes.CDLL('libc.so.6')
-        self.lib = ctypes.CDLL('libh5z_j2k.so')
+        if sys.platform.startswith('linux'):
+            self.c_stdlib = ctypes.CDLL('libc.so.6')
+            self.lib = ctypes.CDLL('libh5z_j2k.so')
+        elif sys.platform == 'darwin':
+            self.c_stdlib = ctypes.CDLL('libc.dylib')
+            self.lib = ctypes.CDLL('libh5z_j2k.dylib')
+        else:
+            raise RuntimeError("Unsupported platform: " + sys.platform)
         self.lib.populate_config.argtypes = [
             ctypes.POINTER(CodecConfigT),
             ctypes.c_size_t,
