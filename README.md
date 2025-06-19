@@ -1,8 +1,18 @@
 EBCC: Error Bounded Climate Compressor
 ======================================
 
-# How to install
-Install required packages: `hdf5-devel`. Then:
+# Prerequisites
+Install required packages: `hdf5-devel`.
+
+# Build with pip
+```python
+pip install -e .
+# or with optional dependencies
+pip install -e ".[dev]"           # Development dependencies
+pip install -e ".[zarr]"          # Zarr support (requires python 3.11+ for zarr 3.0+)
+```
+
+# Manual build
 ```
 git clone --recurse-submodules https://github.com/spcl/EBCC.git
 mkdir compression-filter/src/build
