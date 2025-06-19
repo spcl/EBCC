@@ -1,7 +1,18 @@
 import os
+import sys
+
+if sys.platform.startswith('linux'):
+    lib_name = 'libh5z_j2k.so'
+elif sys.platform == 'darwin':
+    lib_name = 'libh5z_j2k.dylib'
+#elif sys.platform == 'win32':
+#    lib_name = 'h5z_j2k.dll'
+else:
+    raise RuntimeError(f"Unsupported platform: {sys.platform}")
+
 
 EBCC_FILTER_DIR = os.path.join(os.path.dirname(__file__), "../src/build/lib")
-EBCC_FILTER_PATH = os.path.join(EBCC_FILTER_DIR, "libh5z_j2k.so")
+EBCC_FILTER_PATH = os.path.join(EBCC_FILTER_DIR, lib_name)
 
 if not os.path.exists(EBCC_FILTER_PATH):
     raise FileNotFoundError(
