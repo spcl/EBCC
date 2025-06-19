@@ -401,8 +401,8 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     log_set_level_from_env();
     
     const char *env_base_error_quantile = getenv("EBCC_INIT_BASE_ERROR_QUANTILE");
-    const char *env_disable_pure_jp2_fallback = getenv("EBCC_DISABLE_PURE_JP2_FALLBACK");
-    const char *env_disable_pure_jp2_consistency = getenv("EBCC_DISABLE_PURE_JP2_FALLBACK_CONSISTENCY");
+    const char *env_disable_pure_jp2_fallback = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK");
+    const char *env_disable_pure_jp2_consistency = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK_CONSISTENCY");
     if (env_base_error_quantile) {
         base_error_quantile = strtod(env_base_error_quantile, NULL);
     }
@@ -416,7 +416,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
     print_config(config);
     log_info("1 - base_quantile_target: %.1e", 1-base_quantile_target);
-    log_info("Disable pure JP2 fallback: %s", pure_j2k_disabled ? "TRUE" : "FALSE");
+    log_info("Disable pure base compression fallback: %s", pure_j2k_disabled ? "TRUE" : "FALSE");
 
 
 
@@ -506,7 +506,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             int skip_residual = cur_max_error <= error_target;
             pure_j2k_done = base_quantile_target == 1.0;
 
-            if (pure_j2k_done) log_info("Pure JP2 compression is feasible, compression error: %f, cr: %f", cur_max_error, current_cr);
+            if (pure_j2k_done) log_info("Pure base compression is feasible, compression error: %f, cr: %f", cur_max_error, current_cr);
             
 
             if (!skip_residual) {

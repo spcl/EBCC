@@ -56,6 +56,10 @@ void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned in
         log_fatal("Buffer size %lu is not divisible by the tile size %lu x %lu = %lu", config->dims[0], cd_values[0], cd_values[1], cd_values[0] * cd_values[1]);
         exit(1);
     }
+    if (cd_values[0] < 32 || cd_values[1] < 32) {
+        log_fatal("Tile size %lu x %lu is too small, must be at least 32 x 32", cd_values[0], cd_values[1]);
+        exit(1);
+    }
     for (size_t i = 0; i < 2; ++i) {
         size_t cur = cd_values[i];
         config->dims[0] /= cur;
