@@ -8,3 +8,7 @@ data/compressed.nc
 .devcontainer
 .vscode
 *.nc
+*.so
+CLAUDE.md
+ebcc.egg-info
+ebcc/__pycache__

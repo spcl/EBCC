@@ -8,7 +8,7 @@ import h5py
 import numpy as np
 import pandas as pd
 from argparse import ArgumentParser
-from filter_wrapper import EBCC_Filter
+from ebcc.filter_wrapper import EBCC_Filter
 from tqdm import tqdm
 import hdf5plugin
 

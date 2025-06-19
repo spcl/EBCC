@@ -4,7 +4,7 @@ EBCC: Error Bounded Climate Compressor
 # How to install
 Install required packages: `hdf5-devel`. Then:
 ```
-git clone --recurse-submodules https://github.com/luigifusco/compression-filter.git
+git clone --recurse-submodules https://github.com/spcl/EBCC.git
 mkdir compression-filter/src/build
 cd compression-filter/src/build
 cmake -DCMAKE_INSTALL_PREFIX=. ..
@@ -52,9 +52,9 @@ Then run:
 ```
 HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 setfilter,filename=myfilter temperature.nc compressed.nc
 ```
-**CAUTION** Make sure to set output precision to float32 in cdo using `-b F32`! Otherwise, undefined behavior will occur (Segmentation Fault or incorrect result).
+**CAUTION** Make sure to set output precision to float32 in cdo using `-b F32`! Otherwise, undefined behavior will occur (Segmentation Fault or incorrect result). Also make sure the chunksize of input netcdf file is a multiple of the tile size (height, width). If not, please either change height & width or rechunk the file using `nccopy -c ...` .
 
 # Extra configurations through environment variables
 - `EBCC_LOG_LEVEL`: valid value int [0, 5], default to 3, 0 - TRACE, 1 - DEBUG, 2 - INFO, 3 - WARN, 4 - ERROR, 5 - FATAL
 - `EBCC_INIT_BASE_ERROR_QUANTILE`: valid value float [0, 1), default to 1e-6, set to 0 to turn off residual compression layer
-- `EBCC_DISABLE_PURE_JP2_FALLBACK`: when set, turn off pure JP2 fallback (not recommended)
+- `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK`: when set, turn off pure JP2 fallback (not recommended)

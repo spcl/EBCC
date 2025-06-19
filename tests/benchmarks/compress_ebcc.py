@@ -6,7 +6,7 @@ import sys
 sys.path.append(base_folder)
 import h5py
 import numpy as np
-from filter_wrapper import EBCC_Filter
+from ebcc.filter_wrapper import EBCC_Filter
 import xarray
 
 f = h5py.File(f'geopotential_pl_small_ebcc.nc', 'w')

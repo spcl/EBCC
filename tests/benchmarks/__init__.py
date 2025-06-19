@@ -1,0 +1,1 @@
+# Benchmark tests for EBCC compression filter

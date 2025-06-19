@@ -606,7 +606,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
 
             if ((codec_data_buffer.length < compressed_size + jp2_buffer_length) || pure_j2k_required) {
                 /* Pure JP2 is better than JP2 + SPWV */
-                log_info("Pure JP2 (%lu) is better than JP2 (%lu) + SPWV (%lu) (sum: %lu)", codec_data_buffer.length, jp2_buffer_length, compressed_size, compressed_size + jp2_buffer_length);
+                log_info("Pure base compression (%lu) is better than base (%lu) + residual (%lu) compression (sum: %lu)", codec_data_buffer.length, jp2_buffer_length, compressed_size, compressed_size + jp2_buffer_length);
 
                 compressed_size = 0;
                 coeffs_size = 0;
