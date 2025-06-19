@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools", "wheel", "cmake"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ebcc"
+version = "1.0.0"
+description = "Error Bounded Climate Compressor - HDF5 filter for scientific data compression"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "EBCC Contributors"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.19.0",
+    "h5py>=3.0.0",
+    "xarray>=0.16.0",
+]
+
+[project.optional-dependencies]
+zarr = [
+    "zarr>=3.0.1",
+    "zarr-any-numcodecs>=0.1.1"
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-benchmark>=4.0.0",
+    "psutil>=5.8.0",
+]
+benchmark = [
+    "pandas>=1.3.0",
+    "tqdm>=4.60.0",
+    "matplotlib>=3.3.0",
+]
+comparison = [
+    "hdf5plugin>=4.0.0",
+    "enstools-compression>=2023.11.1",
+]
+dev = [
+    "zarr>=3.0.1",
+    "zarr-any-numcodecs>=0.1.1",
+    "pytest>=7.0.0",
+    "pytest-benchmark>=4.0.0",
+    "psutil>=5.8.0",
+    "pandas>=1.3.0",
+    "tqdm>=4.60.0",
+    "matplotlib>=3.3.0",
+    "hdf5plugin>=4.0.0",
+    "enstools-compression>=2023.11.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/spcl/EBCC"
+Repository = "https://github.com/spcl/EBCC"
+Issues = "https://github.com/spcl/EBCC/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+norecursedirs = ["src/openjpeg", "src/zstd", ".git", "build"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "benchmark: marks tests as benchmarks",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.setuptools]
+py-modules = ["ebcc"]  # Include the Python wrapper
+
+[tool.setuptools.package-data]
+"*" = ["*.so", "*.dll", "*.dylib"]

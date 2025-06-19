@@ -1,7 +1,6 @@
 __pycache__
 src/build
 src/share
-pyproject.toml
 data/test.hdf5
 data/test.pdf
 data/compressed.nc
