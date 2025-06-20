@@ -24,7 +24,7 @@ add_subdirectory(openjpeg)
 
 find_package(HDF5 REQUIRED)
 
-include_directories(${HDF5_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/hdf5/src build/hdf5/src zstd/lib openjpeg/src/lib/openjp2 build/openjpeg/src/lib/openjp2 spiht log)
+include_directories(${HDF5_INCLUDE_DIRS} zstd/lib openjpeg/src/lib/openjp2 ${CMAKE_CURRENT_BINARY_DIR}/openjpeg/src/lib/openjp2 spiht log)
 target_link_libraries(h5z_j2k PRIVATE libzstd_static openjp2_static ${HDF5_LIBRARIES})
 
 install(
