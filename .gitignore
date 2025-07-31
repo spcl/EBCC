@@ -11,3 +11,5 @@ data/compressed.nc
 CLAUDE.md
 ebcc.egg-info
 ebcc/__pycache__
+data/test.zarr
+.venv

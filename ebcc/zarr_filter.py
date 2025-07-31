@@ -83,7 +83,7 @@ class EBCCZarrFilter(Codec):
         return out_array
 
     def get_config(self):
-        return {'id': self.codec_id, 'arglist': list(self.arglist)}
+        return {'id': self.codec_id, 'arglist': self.arglist.astype(int).tolist()}
 
     @classmethod
     def from_config(cls, config):
