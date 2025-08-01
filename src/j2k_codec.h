@@ -281,6 +281,15 @@ float get_max_error(const float *data, const float *decoded, const float *residu
     return cur_max_error;
 }
 
+double get_mean_error(const float *data, const float *decoded, const float *residual, const size_t tot_size) {
+    double sum_error = 0;
+    for (size_t i = 0; i < tot_size; ++i) {
+        float residual_value = residual ? residual[i] : 0;
+        sum_error += fabsf(data[i] - (decoded[i] + residual_value));
+    }
+    return (sum_error / tot_size);
+}
+
 double get_error_target_quantile(const float *data, const float *decoded, const float *residual, const size_t tot_size, const float error_target) {
     size_t n = 0;
     for (size_t i = 0; i < tot_size; ++i) {
@@ -395,6 +404,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     size_t coeffs_size = 0, coeffs_size_orig = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
     double trunc_hi, trunc_lo, best_feasible_trunc;
     double quantile = config->quantile, eps = 1e-8, base_error_quantile=1e-6;
+    double cur_mean_error = 0.0;
 
     // Load base_error_quantile from env var EBCC_INIT_BASE_ERROR_QUANTILE, default to 1e-6 if not set
 
@@ -469,6 +479,8 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
         float *decoded = (float *) malloc(tot_size * sizeof(float));
         j2k_decode_internal(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
 
+        cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
+
         // compute error from jpeg2000
         for (size_t i = 0; i < tot_size; ++i) {
             residual[i] = data[i] - decoded[i];
@@ -528,6 +540,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                     /*DONE: if this happen, go for full jpeg2000*/
                 } else {
                     best_feasible_error = cur_max_error;
+                    cur_mean_error = get_mean_error(data, decoded, residual, tot_size);
                 }
             }
             if (!skip_residual) {
@@ -556,6 +569,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
                         if (cur_max_error >= best_feasible_error) {
                             best_feasible_error = cur_max_error;
                             best_feasible_trunc = coeffs_trunc_bits;
+                            cur_mean_error = get_mean_error(data, decoded, residual, tot_size);
                         }
                     }
                     log_trace("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error);
@@ -607,6 +621,8 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
             if ((codec_data_buffer.length < compressed_size + jp2_buffer_length) || pure_j2k_required) {
                 /* Pure JP2 is better than JP2 + SPWV */
                 log_info("Pure base compression (%lu) is better than base (%lu) + residual (%lu) compression (sum: %lu)", codec_data_buffer.length, jp2_buffer_length, compressed_size, compressed_size + jp2_buffer_length);
+                
+                cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
 
                 compressed_size = 0;
                 coeffs_size = 0;
@@ -625,6 +641,13 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     }
 
     if (!const_field) free(scaled_data);
+
+    log_info("Mean of compression error: %e", cur_mean_error);
+    if (fabs(cur_mean_error) > 1e-18) {
+        minval += cur_mean_error;
+        maxval += cur_mean_error;
+        log_info("Adjusting minval and maxval to %f, %f", minval, maxval);
+    }
 
     size_t codec_size = (const_field) ? sizeof(size_t) : jp2_buffer_length; /*Only output array length if having a constant field*/
 
