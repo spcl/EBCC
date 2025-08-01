@@ -285,7 +285,7 @@ double get_mean_error(const float *data, const float *decoded, const float *resi
     double sum_error = 0;
     for (size_t i = 0; i < tot_size; ++i) {
         float residual_value = residual ? residual[i] : 0;
-        sum_error += fabsf(data[i] - (decoded[i] + residual_value));
+        sum_error += data[i] - (decoded[i] + residual_value);
     }
     return (sum_error / tot_size);
 }
@@ -395,7 +395,7 @@ void check_nan_inf(const float *data, const size_t tot_size) {
 }
 
 size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **out_buffer) {
-    int pure_j2k_required = FALSE, pure_j2k_done = FALSE, pure_j2k_disabled = FALSE, pure_j2k_consistency_disabled = FALSE;
+    int pure_j2k_required = FALSE, pure_j2k_done = FALSE, pure_j2k_disabled = FALSE, pure_j2k_consistency_disabled = FALSE, mean_error_adjustment_disabled = FALSE;
     size_t compressed_size = 0, jp2_buffer_length = 0;
     uint8_t *compressed_coefficients = NULL;
     uint8_t *coeffs_buf = NULL;
@@ -413,6 +413,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     const char *env_base_error_quantile = getenv("EBCC_INIT_BASE_ERROR_QUANTILE");
     const char *env_disable_pure_jp2_fallback = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK");
     const char *env_disable_pure_jp2_consistency = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK_CONSISTENCY");
+    const char *env_disable_mean_adjustment = getenv("EBCC_DISABLE_MEAN_ADJUSTMENT");
     if (env_base_error_quantile) {
         base_error_quantile = strtod(env_base_error_quantile, NULL);
     }
@@ -421,6 +422,9 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     }
     if (env_disable_pure_jp2_consistency) {
         pure_j2k_consistency_disabled = TRUE;
+    }
+    if (env_disable_mean_adjustment) {
+        mean_error_adjustment_disabled = TRUE;
     }
     double base_quantile_target = 1 - base_error_quantile;
 
@@ -643,7 +647,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     if (!const_field) free(scaled_data);
 
     log_info("Mean of compression error: %e", cur_mean_error);
-    if (fabs(cur_mean_error) > 1e-18) {
+    if (!mean_error_adjustment_disabled && fabs(cur_mean_error) > 1e-18) {
         minval += cur_mean_error;
         maxval += cur_mean_error;
         log_info("Adjusting minval and maxval to %f, %f", minval, maxval);
