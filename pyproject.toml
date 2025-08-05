@@ -46,7 +46,7 @@ benchmark = [
 ]
 comparison = [
     "hdf5plugin>=4.0.0",
-    "h5netcdf >=1.6.3"
+    "h5netcdf >=1.6.3",
     "enstools-compression>=2023.11.1",
 ]
 dev = [
@@ -59,7 +59,7 @@ dev = [
     "tqdm>=4.60.0",
     "matplotlib>=3.3.0",
     "hdf5plugin>=4.0.0",
-    "h5netcdf >=1.6.3"
+    "h5netcdf >=1.6.3",
     "enstools-compression>=2023.11.1",
 ]
 
