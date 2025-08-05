@@ -16,17 +16,16 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.19.0",
     "h5py>=3.0.0",
-    "xarray>=0.16.0",
+    "xarray>=0.16.0"
 ]
 
 [project.optional-dependencies]
@@ -38,6 +37,7 @@ test = [
     "pytest>=7.0.0",
     "pytest-benchmark>=4.0.0",
     "psutil>=5.8.0",
+    "h5netcdf >=1.6.3"
 ]
 benchmark = [
     "pandas>=1.3.0",
@@ -46,6 +46,7 @@ benchmark = [
 ]
 comparison = [
     "hdf5plugin>=4.0.0",
+    "h5netcdf >=1.6.3"
     "enstools-compression>=2023.11.1",
 ]
 dev = [
@@ -58,6 +59,7 @@ dev = [
     "tqdm>=4.60.0",
     "matplotlib>=3.3.0",
     "hdf5plugin>=4.0.0",
+    "h5netcdf >=1.6.3"
     "enstools-compression>=2023.11.1",
 ]
 
