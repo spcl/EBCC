@@ -134,8 +134,8 @@ fn test_large_array() {
     init_logging();
     
     // Test with a larger array (similar to small climate dataset)
-    let height = 181; // Quarter degree resolution
-    let width = 360;
+    let height = 721; // Quarter degree resolution
+    let width = 1440;
     let frames = 1;
     let total_elements = frames * height * width;
     

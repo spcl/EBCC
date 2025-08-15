@@ -64,13 +64,17 @@ path = "binding/lib.rs"
 
 [[example]]
 name = "basic_compression"
-path = "examples/basic_compression.rs"
+path = "binding/examples/basic_compression.rs"
 required-features = []
 
 [[example]]
 name = "numcodecs_integration"
-path = "examples/numcodecs_integration.rs"
+path = "binding/examples/numcodecs_integration.rs"
 required-features = []
+
+[[test]]
+name = "integration_tests"
+path = "binding/tests/integration_tests.rs"
 
 [package.metadata.docs.rs]
 features = ["bindgen"]
