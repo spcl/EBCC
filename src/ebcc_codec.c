@@ -452,6 +452,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
         // encode using jpeg2000
         j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
         if (config->residual_compression_type == NONE) {
+            jp2_buffer = (uint8_t *) malloc(codec_data_buffer.length);
             memcpy(jp2_buffer, codec_data_buffer.buffer, codec_data_buffer.length);
             jp2_buffer_length = codec_data_buffer.length;
         }
@@ -670,7 +671,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     assert(iter - *out_buffer == out_size - codec_size);
 
     if (compressed_coefficients) free(compressed_coefficients);
-    free(jp2_buffer);
+    if (jp2_buffer) free(jp2_buffer);
 
     codec_data_buffer_destroy(&codec_data_buffer);
 

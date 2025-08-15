@@ -24,10 +24,15 @@ class EBCC_Filter(Mapping):
         self.height = height
         self.width = width
         self.residual_opt = residual_opt
-        residual_type_str, residual_opt_val = residual_opt
+        if residual_opt is None:
+            self.residual_opt = ("none", 0)
+        residual_type_str, residual_opt_val = self.residual_opt
         self.data_dim = data_dim
         residual_opt_val = float(residual_opt_val)
-        if residual_type_str == "quantile_target":
+        if residual_type_str == "none":
+            residual_type = 0
+            hdf_filter_opts.append(residual_type)
+        elif residual_type_str == "quantile_target":
             residual_type = 1
             hdf_filter_opts.extend([residual_type, float_to_uint32(residual_opt_val)])
         elif residual_type_str == "max_error_target":
