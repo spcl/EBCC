@@ -13,3 +13,11 @@ ebcc.egg-info
 ebcc/__pycache__
 data/test.zarr
 .venv
+uv.lock
+valgrind*
+.python-version
+
+
+# Rust build artifacts
+target
+Cargo.lock

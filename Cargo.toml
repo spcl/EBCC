@@ -1,0 +1,69 @@
+[package]
+name = "ebcc"
+version = "0.1.0"
+edition = "2021"
+authors = ["EBCC Contributors"]
+description = "Rust bindings for EBCC (Error Bounded Climate Compressor) with numcodecs support"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/spcl/EBCC"
+readme = "README.md"
+keywords = ["compression", "climate", "hdf5", "jpeg2000", "wavelet"]
+categories = ["compression", "science", "encoding", "api-bindings"]
+
+[dependencies]
+# Core numcodecs traits (optional for now until we understand the API)
+numcodecs = { version = "0.1", optional = true }
+
+# FFI and binding generation
+bindgen = { version = "0.70", optional = true }
+cc = "1.0"
+
+# Array handling 
+ndarray = "0.15"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# C interop
+libc = "0.2"
+
+# Serialization for configuration
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Logging
+log = "0.4"
+
+[dev-dependencies]
+# Testing
+criterion = "0.5"
+proptest = "1.0"
+tempfile = "3.0"
+
+[features]
+default = []
+# Enable bindgen code generation at build time
+bindgen = ["dep:bindgen"]
+# Enable numcodecs integration
+numcodecs = ["dep:numcodecs"]
+
+[build-dependencies]
+bindgen = { version = "0.70", optional = true }
+cmake = "0.1"
+pkg-config = "0.3"
+
+[lib]
+name = "ebcc"
+crate-type = ["rlib", "cdylib"]
+
+[[example]]
+name = "basic_compression"
+required-features = []
+
+[[example]]
+name = "numcodecs_integration"
+required-features = []
+
+[package.metadata.docs.rs]
+features = ["bindgen"]
