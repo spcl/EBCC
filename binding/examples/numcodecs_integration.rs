@@ -13,8 +13,6 @@ use numcodecs::{Codec, AnyCowArray, AnyArray};
 #[cfg(feature = "numcodecs")]
 use ndarray::Array;
 
-use serde_json;
-use std::collections::HashMap;
 
 #[cfg(not(feature = "numcodecs"))]
 fn main() {
