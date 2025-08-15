@@ -1,9 +1,6 @@
 EBCC: Error Bounded Climate Compressor
 ======================================
 
-# Prerequisites
-Install required packages: `hdf5-devel`.
-
 # Build with pip
 ```python
 pip install -e .
