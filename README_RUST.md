@@ -234,17 +234,12 @@ cargo bench
 ### Development Setup
 
 1. Install Rust toolchain
-2. Install CMake and C compiler
+2. Install CMake and C compiler (clang)
 3. Clone repository with submodules:
    ```bash
    git clone --recurse-submodules <repository>
    ```
-4. Build C library:
-   ```bash
-   mkdir src/build && cd src/build
-   cmake .. && make
-   ```
-5. Build Rust bindings:
+4. Build Rust bindings:
    ```bash
    cargo build --features bindgen,numcodecs
    ```

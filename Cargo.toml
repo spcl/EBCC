@@ -56,13 +56,16 @@ pkg-config = "0.3"
 [lib]
 name = "ebcc"
 crate-type = ["rlib"]
+path = "binding/lib.rs"
 
 [[example]]
 name = "basic_compression"
+path = "examples/basic_compression.rs"
 required-features = []
 
 [[example]]
 name = "numcodecs_integration"
+path = "examples/numcodecs_integration.rs"
 required-features = []
 
 [package.metadata.docs.rs]
