@@ -1,25 +1,29 @@
 [package]
 name = "ebcc"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["EBCC Contributors"]
 description = "Rust bindings for EBCC (Error Bounded Climate Compressor) with numcodecs support"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/spcl/EBCC"
 readme = "README.md"
 keywords = ["compression", "climate", "hdf5", "jpeg2000", "wavelet"]
 categories = ["compression", "science", "encoding", "api-bindings"]
 
 [dependencies]
-# Core numcodecs traits (optional for now until we understand the API)
-numcodecs = { version = "0.1", optional = true }
+# Core numcodecs traits
+numcodecs = { version = "0.2.1", optional = true }
+
+# Additional dependencies needed for numcodecs integration
+postcard = { version = "1.0", optional = true }
+schemars = { version = "1.0.0-alpha.15", features = ["derive", "preserve_order"], optional = true }
 
 # FFI and binding generation
 bindgen = { version = "0.70", optional = true }
 cc = "1.0"
 
 # Array handling 
-ndarray = "0.15"
+ndarray = "0.16"
 
 # Error handling
 thiserror = "1.0"
@@ -46,7 +50,7 @@ default = []
 # Enable bindgen code generation at build time
 bindgen = ["dep:bindgen"]
 # Enable numcodecs integration
-numcodecs = ["dep:numcodecs"]
+numcodecs = ["dep:numcodecs", "dep:postcard", "dep:schemars"]
 
 [build-dependencies]
 bindgen = { version = "0.70", optional = true }
@@ -70,3 +74,36 @@ required-features = []
 
 [package.metadata.docs.rs]
 features = ["bindgen"]
+
+# Profile configurations
+[profile.dev]
+# Use release-like optimizations for dev builds
+opt-level = 2
+debug = true
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = 'unwind'
+incremental = true
+codegen-units = 256
+
+[profile.release]
+# Optimize for performance
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = true
+panic = 'abort'
+incremental = false
+codegen-units = 1
+
+[profile.bench]
+# Same as release but with debug info for profiling
+inherits = "release"
+debug = true
+
+[profile.test]
+# Use optimized builds for tests but keep debug info
+opt-level = 2
+debug = true

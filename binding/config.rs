@@ -4,11 +4,15 @@ use serde::{Deserialize, Serialize};
 use crate::error::{EBCCError, EBCCResult};
 use crate::ffi;
 
+#[cfg(feature = "numcodecs")]
+use schemars::JsonSchema;
+
 /// The number of dimensions supported by EBCC (matches NDIMS from C header).
 pub const NDIMS: usize = 3;
 
 /// Residual compression types supported by EBCC.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "numcodecs", derive(JsonSchema))]
 pub enum ResidualType {
     /// No residual compression - base JPEG2000 only
     None,
@@ -51,6 +55,7 @@ impl From<ffi::residual_t::Type> for ResidualType {
 /// 
 /// This struct mirrors the `codec_config_t` struct from the C library.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "numcodecs", derive(JsonSchema))]
 pub struct EBCCConfig {
     /// Data dimensions [frames, height, width] - must be exactly 3 dimensions
     pub dims: [usize; NDIMS],
@@ -143,6 +148,14 @@ impl EBCCConfig {
             return Err(EBCCError::invalid_config("Data too large"));
         }
         
+        // EBCC requires last two dimensions to be at least 32x32
+        if self.dims[1] < 32 || self.dims[2] < 32 {
+            return Err(EBCCError::invalid_config(
+                format!("EBCC requires last two dimensions to be at least 32x32, got {}x{}", 
+                        self.dims[1], self.dims[2])
+            ));
+        }
+        
         // Check compression ratio
         if self.base_cr <= 0.0 {
             return Err(EBCCError::invalid_config("Base compression ratio must be > 0"));
@@ -191,6 +204,7 @@ impl EBCCConfig {
     }
     
     /// Create from a C FFI configuration struct.
+    #[allow(dead_code)]
     pub(crate) fn from_ffi(config: &ffi::codec_config_t) -> Self {
         Self {
             dims: config.dims,

@@ -1,6 +1,6 @@
 //! Integration tests for EBCC Rust bindings.
 
-use ebcc::{encode_climate_variable, decode_climate_variable, EBCCConfig, init_logging};
+use ebcc::{encode_climate_variable, decode_climate_variable, EBCCConfig, ResidualType, init_logging};
 
 #[test]
 fn test_basic_compression_roundtrip() {

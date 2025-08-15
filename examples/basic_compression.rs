@@ -3,7 +3,7 @@
 //! This example demonstrates how to use the EBCC Rust bindings for
 //! compressing and decompressing climate data.
 
-use ebcc::{encode_climate_variable, decode_climate_variable, EBCCConfig, ResidualType, init_logging};
+use ebcc::{encode_climate_variable, decode_climate_variable, EBCCConfig, init_logging};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging

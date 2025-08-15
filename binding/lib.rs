@@ -17,24 +17,28 @@
 //! use ebcc::{EBCCConfig, ResidualType, encode_climate_variable, decode_climate_variable};
 //! use ndarray::Array2;
 //! 
-//! // Create a 2D array of climate data
-//! let data = Array2::<f32>::zeros((721, 1440)); // ERA5-like dimensions
-//! 
-//! // Configure the codec
-//! let config = EBCCConfig {
-//!     dims: [1, 721, 1440],
-//!     base_cr: 30.0,
-//!     residual_compression_type: ResidualType::MaxError,
-//!     residual_cr: 0.0,
-//!     error: 0.01,
-//!     quantile: 0.0,
-//! };
-//! 
-//! // Compress the data
-//! let compressed = encode_climate_variable(data.as_slice().unwrap(), &config)?;
-//! 
-//! // Decompress the data
-//! let decompressed = decode_climate_variable(&compressed)?;
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create a 2D array of climate data
+//!     let data = Array2::<f32>::zeros((721, 1440)); // ERA5-like dimensions
+//!     
+//!     // Configure the codec
+//!     let config = EBCCConfig {
+//!         dims: [1, 721, 1440],
+//!         base_cr: 30.0,
+//!         residual_compression_type: ResidualType::MaxError,
+//!         residual_cr: 0.0,
+//!         error: 0.01,
+//!         quantile: 0.0,
+//!     };
+//!     
+//!     // Compress the data
+//!     let compressed = encode_climate_variable(data.as_slice().unwrap(), &config)?;
+//!     
+//!     // Decompress the data
+//!     let decompressed = decode_climate_variable(&compressed)?;
+//!     
+//!     Ok(())
+//! }
 //! ```
 
 pub mod error;
@@ -51,7 +55,7 @@ pub use codec::{encode_climate_variable, decode_climate_variable};
 pub use error::{EBCCError, EBCCResult};
 
 #[cfg(feature = "numcodecs")]
-pub use numcodecs_impl::{EBCCCodec, EBCCStaticCodec};
+pub use numcodecs_impl::{EBCCCodec, EBCCCodecError, ebcc_codec_from_config};
 
 /// Initialize logging from environment variables.
 /// 

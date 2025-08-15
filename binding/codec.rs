@@ -171,12 +171,12 @@ pub fn print_config(config: &EBCCConfig) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::ResidualType;
     
     #[test]
     fn test_encode_decode_roundtrip() {
-        let data = vec![1.0, 2.0, 3.0, 4.0];
-        let config = EBCCConfig::new([1, 2, 2]);
+        // Create test data for 32x32 minimum size requirement
+        let data = vec![1.0f32; 32 * 32];
+        let config = EBCCConfig::new([1, 32, 32]);
         
         let compressed = encode_climate_variable(&data, &config).unwrap();
         let decompressed = decode_climate_variable(&compressed).unwrap();
@@ -187,8 +187,8 @@ mod tests {
     
     #[test]
     fn test_invalid_config() {
-        let data = vec![1.0; 4];
-        let mut config = EBCCConfig::new([1, 2, 2]);
+        let data = vec![1.0f32; 32 * 32];
+        let mut config = EBCCConfig::new([1, 32, 32]);
         config.base_cr = -1.0; // Invalid compression ratio
         
         let result = encode_climate_variable(&data, &config);
@@ -197,8 +197,8 @@ mod tests {
     
     #[test]
     fn test_mismatched_data_size() {
-        let data = vec![1.0; 5]; // Should be 4 elements
-        let config = EBCCConfig::new([1, 2, 2]); // Expects 2*2 = 4 elements
+        let data = vec![1.0f32; 1025]; // Should be 1024 elements (32*32)
+        let config = EBCCConfig::new([1, 32, 32]); // Expects 32*32 = 1024 elements
         
         let result = encode_climate_variable(&data, &config);
         assert!(result.is_err());
@@ -206,8 +206,9 @@ mod tests {
     
     #[test]
     fn test_nan_input() {
-        let data = vec![1.0, f32::NAN, 3.0, 4.0];
-        let config = EBCCConfig::new([1, 2, 2]);
+        let mut data = vec![1.0f32; 32 * 32];
+        data[100] = f32::NAN; // Insert NaN in the middle
+        let config = EBCCConfig::new([1, 32, 32]);
         
         let result = encode_climate_variable(&data, &config);
         assert!(result.is_err());

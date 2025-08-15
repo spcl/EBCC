@@ -1,1 +1,2 @@
 - add 32x32 size check in encode_climate_variable 
+- improve error value
