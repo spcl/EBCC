@@ -22,7 +22,7 @@ pub enum ResidualType {
     Quantile,
 }
 
-impl From<ResidualType> for ffi::residual_t {
+impl From<ResidualType> for ffi::residual_t::Type {
     fn from(rt: ResidualType) -> Self {
         match rt {
             ResidualType::None => ffi::residual_t::NONE,
@@ -34,14 +34,15 @@ impl From<ResidualType> for ffi::residual_t {
     }
 }
 
-impl From<ffi::residual_t> for ResidualType {
-    fn from(rt: ffi::residual_t) -> Self {
+impl From<ffi::residual_t::Type> for ResidualType {
+    fn from(rt: ffi::residual_t::Type) -> Self {
         match rt {
             ffi::residual_t::NONE => ResidualType::None,
             ffi::residual_t::SPARSIFICATION_FACTOR => ResidualType::SparsificationFactor,
             ffi::residual_t::MAX_ERROR => ResidualType::MaxError,
             ffi::residual_t::RELATIVE_ERROR => ResidualType::RelativeError,
             ffi::residual_t::QUANTILE => ResidualType::Quantile,
+            _ => ResidualType::None, // Default case for unknown values
         }
     }
 }

@@ -15,19 +15,17 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 // If bindgen is not available, provide manual bindings for the core types
 #[cfg(not(feature = "bindgen"))]
 mod manual_bindings {
-    use std::os::raw::{c_float, c_double, c_uchar, c_uint};
-    use std::ffi::c_void;
+    use std::os::raw::{c_float, c_double, c_uchar};
     
     pub const NDIMS: usize = 3;
     
-    #[repr(C)]
-    #[derive(Debug, Copy, Clone)]
-    pub enum residual_t {
-        NONE = 0,
-        SPARSIFICATION_FACTOR = 1,
-        MAX_ERROR = 2,
-        RELATIVE_ERROR = 3,
-        QUANTILE = 4,
+    pub mod residual_t {
+        pub type Type = ::std::os::raw::c_uint;
+        pub const NONE: Type = 0;
+        pub const SPARSIFICATION_FACTOR: Type = 1;
+        pub const MAX_ERROR: Type = 2;
+        pub const RELATIVE_ERROR: Type = 3;
+        pub const QUANTILE: Type = 4;
     }
     
     #[repr(C)]
@@ -35,7 +33,7 @@ mod manual_bindings {
     pub struct codec_config_t {
         pub dims: [usize; NDIMS],
         pub base_cr: c_float,
-        pub residual_compression_type: residual_t,
+        pub residual_compression_type: residual_t::Type,
         pub residual_cr: c_float,
         pub error: c_float,
         pub quantile: c_double,

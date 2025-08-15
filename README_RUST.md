@@ -73,8 +73,10 @@ The Rust bindings use CMake to build the underlying C library as a static librar
 ### Building
 
 ```bash
-# Build with default features
+# Build with default features (debug)
 cargo build
+# or release mode
+cargo build --release
 
 # Build with bindgen (regenerates C bindings)
 cargo build --features bindgen

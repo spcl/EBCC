@@ -1,4 +1,6 @@
+#[cfg(feature = "bindgen")]
 use std::env;
+#[cfg(feature = "bindgen")]
 use std::path::PathBuf;
 
 fn main() {
@@ -8,9 +10,17 @@ fn main() {
     
     // Tell cargo to look for libraries in the CMake build directory
     println!("cargo:rustc-link-search=native={}/lib", dst.display());
+    println!("cargo:rustc-link-search=native={}/lib64", dst.display());
     
-    // Link against the static EBCC library
+    // Link against the static EBCC library and its dependencies
     println!("cargo:rustc-link-lib=static=ebcc");
+    println!("cargo:rustc-link-lib=static=openjp2");
+    println!("cargo:rustc-link-lib=static=zstd");
+    
+    // Try explicitly adding the static libraries as link args for tests
+    println!("cargo:rustc-link-arg=-lebcc");
+    println!("cargo:rustc-link-arg=-lopenjp2");
+    println!("cargo:rustc-link-arg=-lzstd");
     
     // Link against required system libraries
     println!("cargo:rustc-link-lib=dylib=m");
@@ -43,6 +53,8 @@ fn main() {
             .allowlist_function("log_set_level_from_env")
             // Generate constants
             .allowlist_var("NDIMS")
+            // Use constified enum module for better enum handling
+            .constified_enum_module("residual_t")
             // Generate comments from C headers
             .generate_comments(true)
             // Use core instead of std for no_std compatibility

@@ -55,7 +55,7 @@ pkg-config = "0.3"
 
 [lib]
 name = "ebcc"
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [[example]]
 name = "basic_compression"
