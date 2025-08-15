@@ -22,10 +22,8 @@ option(BUILD_CODEC "Build OPENJPEG CLI APPS" OFF)
 add_subdirectory(zstd/build/cmake)
 add_subdirectory(openjpeg)
 
-find_package(HDF5 REQUIRED)
-
-include_directories(${HDF5_INCLUDE_DIRS} zstd/lib openjpeg/src/lib/openjp2 ${CMAKE_CURRENT_BINARY_DIR}/openjpeg/src/lib/openjp2 spiht log)
-target_link_libraries(h5z_j2k PRIVATE libzstd_static openjp2_static ${HDF5_LIBRARIES})
+include_directories(zstd/lib openjpeg/src/lib/openjp2 ${CMAKE_CURRENT_BINARY_DIR}/openjpeg/src/lib/openjp2 spiht log)
+target_link_libraries(h5z_j2k PRIVATE libzstd_static openjp2_static)
 
 install(
     TARGETS h5z_j2k

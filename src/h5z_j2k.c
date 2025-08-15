@@ -1,4 +1,4 @@
-#include <H5PLextern.h>
+#include "hdf5_stub.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -17,7 +17,7 @@ const H5Z_class2_t H5Z_J2K[1] = {{
     (H5Z_filter_t) H5Z_FILTER_J2K,  /* Filter id number             */
     1,                              /* encoder_present flag (set to true) */
     1,                              /* decoder_present flag (set to true) */
-    "HDF5 j2k filter L&L",          /* Filter name for debugging    */
+    "HDF5 EBCC filter L&L",         /* Filter name for debugging    */
     NULL,                           /* The "can apply" callback     */
     NULL,                           /* The "set local" callback     */
     (H5Z_func_t) H5Z_filter_j2k,    /* The actual filter function   */
