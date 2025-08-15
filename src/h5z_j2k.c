@@ -1,6 +1,9 @@
 #include <H5PLextern.h>
 #include <unistd.h>
-#include "j2k_codec.h"
+#include <stdlib.h>
+#include <assert.h>
+#include "ebcc_codec.h"
+#include "log.h"
 
 #define H5Z_FILTER_J2K 308
 
@@ -8,20 +11,7 @@ static size_t H5Z_filter_j2k(unsigned int flags, size_t cd_nelmts, const unsigne
 
 /*static htri_t can_apply_j2k(hid_t dcpl_id, hid_t type_id, hid_t space_id);*/
 
-#ifdef J2KEMU
-#define H5Z_FILTER_J2K_EMU 309
-static size_t H5Z_filter_j2k_emulation(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t *buf_size, void **buf);
-const H5Z_class2_t H5Z_J2K[1] = {{
-    H5Z_CLASS_T_VERS,               /* H5Z_class_t version */
-    (H5Z_filter_t) H5Z_FILTER_J2K_EMU,  /* Filter id number             */
-    1,                              /* encoder_present flag (set to true) */
-    1,                              /* decoder_present flag (set to true) */
-    "HDF5 j2k filter emulation L&L",/* Filter name for debugging    */
-    NULL,     /* The "can apply" callback     */
-    NULL,                           /* The "set local" callback     */
-    (H5Z_func_t) H5Z_filter_j2k_emulation,    /* The actual filter function   */
-}};
-#else
+
 const H5Z_class2_t H5Z_J2K[1] = {{
     H5Z_CLASS_T_VERS,               /* H5Z_class_t version */
     (H5Z_filter_t) H5Z_FILTER_J2K,  /* Filter id number             */
@@ -32,7 +22,7 @@ const H5Z_class2_t H5Z_J2K[1] = {{
     NULL,                           /* The "set local" callback     */
     (H5Z_func_t) H5Z_filter_j2k,    /* The actual filter function   */
 }};
-#endif
+
 
 
 H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; }
@@ -142,29 +132,3 @@ static size_t H5Z_filter_j2k(unsigned int flags, size_t cd_nelmts, const unsigne
         return *buf_size;
     }
 }
-
-#ifdef J2KEMU
-static size_t H5Z_filter_j2k_emulation(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t *buf_size, void **buf) {
-
-    if (!(flags & H5Z_FLAG_REVERSE)) {
-        codec_config_t config;
-
-        populate_config(&config, cd_nelmts, cd_values, *buf_size);
-
-        uint8_t *out_buffer = NULL;
-        *buf_size = encode_climate_variable(*buf, &config, &out_buffer);
-
-        free(*buf);
-
-        float *out_buffer_f = NULL;
-        *buf_size = decode_climate_variable(out_buffer, *buf_size, &out_buffer_f);
-        free(out_buffer);
-        *buf = out_buffer_f;
-        return *buf_size;
-    } else {
-        // decompress data
-        buf_size = 0;
-        return nbytes;
-    }
-}
-#endif

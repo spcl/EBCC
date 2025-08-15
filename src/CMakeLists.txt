@@ -14,7 +14,7 @@ set(BUILD_THIRDPARTY True)
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 
 
-add_library(h5z_j2k SHARED h5z_j2k.c spiht/spiht_re.c log/log.c)
+add_library(h5z_j2k SHARED h5z_j2k.c ebcc_codec.c spiht/spiht_re.c log/log.c)
 set_property(TARGET h5z_j2k PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 option(ZSTD_BUILD_PROGRAMS "" OFF)
