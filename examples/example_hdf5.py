@@ -30,6 +30,7 @@ ebcc_filter = EBCC_Filter(
     residual_opt=("relative_error_target", 0.009),# specify the relative error target to be 0.0019
     )
     # other possible residual_opt can be
+    # `None` : no residual compression
     # `("max_error_target", xxx)` : the max_error does not exceed the specified value
     # `("quantile_target", xxx)` : specifies the quantile used to sparsify the wavelet transformed residual
     # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression
