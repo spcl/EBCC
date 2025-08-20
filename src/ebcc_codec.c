@@ -1,3 +1,4 @@
+#include "ebcc_codec.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -169,14 +170,6 @@ typedef struct {
     coo_v_t v;
 } coo_t;
 
-typedef enum {
-    NONE,
-    SPARSIFICATION_FACTOR,
-    MAX_ERROR,
-    RELATIVE_ERROR,
-    QUANTILE
-} residual_t;
-
 const char* residual_t_names[] = {
     "NONE",
     "SPARSIFICATION_FACTOR",
@@ -184,17 +177,6 @@ const char* residual_t_names[] = {
     "RELATIVE_ERROR",
     "QUANTILE"
 };
-
-#define NDIMS 3
-
-typedef struct {
-    size_t dims[NDIMS];
-    float base_cr;
-    residual_t residual_compression_type;
-    float residual_cr;
-    float error;
-    double quantile;
-} codec_config_t;
 
 void print_config(codec_config_t *config) {
     log_info("dimensions:\t(%lu, %lu, %lu)", config->dims[0], config->dims[1], config->dims[2]);
@@ -470,6 +452,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
         // encode using jpeg2000
         j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
         if (config->residual_compression_type == NONE) {
+            jp2_buffer = (uint8_t *) malloc(codec_data_buffer.length);
             memcpy(jp2_buffer, codec_data_buffer.buffer, codec_data_buffer.length);
             jp2_buffer_length = codec_data_buffer.length;
         }
@@ -688,7 +671,7 @@ size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **ou
     assert(iter - *out_buffer == out_size - codec_size);
 
     if (compressed_coefficients) free(compressed_coefficients);
-    free(jp2_buffer);
+    if (jp2_buffer) free(jp2_buffer);
 
     codec_data_buffer_destroy(&codec_data_buffer);
 
