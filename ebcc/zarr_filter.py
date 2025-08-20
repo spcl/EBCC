@@ -46,6 +46,7 @@ class EBCCZarrFilter(Codec):
             ctypes.c_size_t,
             ctypes.POINTER(ctypes.POINTER(ctypes.c_float))
         ]
+        self.lib.free_buffer.argtypes = [ctypes.c_void_p]
 
     def encode(self, buf):
         assert isinstance(buf, np.ndarray), "Input buffer must be a numpy array"
@@ -60,7 +61,7 @@ class EBCCZarrFilter(Codec):
 
         out_bytes = bytes(out_array)
 
-        self.c_stdlib.free(out_buffer)
+        self.lib.free_buffer(out_buffer)
 
         return out_bytes
 
@@ -78,7 +79,7 @@ class EBCCZarrFilter(Codec):
         
         out_array = np.ctypeslib.as_array(out_buffer, shape=(decoded_size,))
         out_array = out_array.copy()
-        self.c_stdlib.free(out_buffer)
+        self.lib.free_buffer(out_buffer)
         
         return out_array
 

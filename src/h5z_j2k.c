@@ -114,7 +114,7 @@ static size_t H5Z_filter_j2k(unsigned int flags, size_t cd_nelmts, const unsigne
         float *out_buffer = NULL;
         *buf_size = decode_climate_variable(*buf, nbytes, &out_buffer);
 
-        free(*buf);
+        free_buffer(*buf);
         *buf = out_buffer;
 
         return *buf_size;
@@ -126,7 +126,7 @@ static size_t H5Z_filter_j2k(unsigned int flags, size_t cd_nelmts, const unsigne
         uint8_t *out_buffer = NULL;
         *buf_size = encode_climate_variable(*buf, &config, &out_buffer);
 
-        free(*buf);
+        free_buffer(*buf);
         *buf = out_buffer;
 
         return *buf_size;

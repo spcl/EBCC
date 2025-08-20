@@ -779,3 +779,9 @@ size_t decode_climate_variable(uint8_t *data, size_t data_size, float **out_buff
 
     return tot_size;
 }
+
+void free_buffer(void *buffer) {
+    if (buffer) {
+        free(buffer);
+    }
+}
