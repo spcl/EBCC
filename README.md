@@ -16,7 +16,7 @@ mkdir compression-filter/src/build
 cd compression-filter/src/build
 cmake -DCMAKE_INSTALL_PREFIX=. ..
 make && make install
-# the compiled filter is stored in `src/build/lib/libh5z_j2k.so`
+# the compiled filter is stored in `src/build/lib/libh5z_ebcc.so`
 ```
 
 # User guide

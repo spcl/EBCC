@@ -2,7 +2,7 @@
 #define HDF5_STUB_H
 
 // HDF5 version 1.14.6-3.fc42
-// Extracted HDF5 symbols required by h5z_j2k.c
+// Extracted HDF5 symbols required by h5z_ebcc.c
 
 #include <stddef.h>
 #include <stdint.h>

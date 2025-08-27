@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(h5z_j2k)
+project(h5z_ebcc)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -14,8 +14,8 @@ set(BUILD_THIRDPARTY True)
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 
 
-add_library(h5z_j2k SHARED h5z_j2k.c ebcc_codec.c spiht/spiht_re.c log/log.c)
-set_property(TARGET h5z_j2k PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+add_library(h5z_ebcc SHARED h5z_ebcc.c ebcc_codec.c spiht/spiht_re.c log/log.c)
+set_property(TARGET h5z_ebcc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Add static EBCC library for Rust bindings
 add_library(ebcc STATIC ebcc_codec.c spiht/spiht_re.c log/log.c)
@@ -27,11 +27,11 @@ add_subdirectory(zstd/build/cmake)
 add_subdirectory(openjpeg)
 
 include_directories(zstd/lib openjpeg/src/lib/openjp2 ${CMAKE_CURRENT_BINARY_DIR}/openjpeg/src/lib/openjp2 spiht log)
-target_link_libraries(h5z_j2k PRIVATE libzstd_static openjp2_static)
+target_link_libraries(h5z_ebcc PRIVATE libzstd_static openjp2_static)
 target_link_libraries(ebcc PRIVATE libzstd_static openjp2_static)
 
 install(
-    TARGETS h5z_j2k ebcc
+    TARGETS h5z_ebcc ebcc
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
 )

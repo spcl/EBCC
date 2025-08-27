@@ -23,8 +23,8 @@ typedef struct {
     double quantile;
 } codec_config_t;
 
-size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **out_buffer);
-size_t decode_climate_variable(uint8_t *data, size_t data_size, float **out_buffer);
+size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer);
+size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer);
 void free_buffer(void *buffer);
 
 void print_config(codec_config_t *config);

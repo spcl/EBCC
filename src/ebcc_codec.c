@@ -376,7 +376,7 @@ void check_nan_inf(const float *data, const size_t tot_size) {
     }
 }
 
-size_t encode_climate_variable(float *data, codec_config_t *config, uint8_t **out_buffer) {
+size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     int pure_j2k_required = FALSE, pure_j2k_done = FALSE, pure_j2k_disabled = FALSE, pure_j2k_consistency_disabled = FALSE, mean_error_adjustment_disabled = FALSE;
     size_t compressed_size = 0, jp2_buffer_length = 0;
     uint8_t *compressed_coefficients = NULL;
@@ -724,7 +724,7 @@ void j2k_decode_internal(float **data, size_t *height, size_t *width, float minv
     opj_image_destroy(image);
 }
 
-size_t decode_climate_variable(uint8_t *data, size_t data_size, float **out_buffer) {
+size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
     codec_data_buffer_t codec_data_buffer;
     size_t tot_size = 0;
     uint8_t *iter = data;

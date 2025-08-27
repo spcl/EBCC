@@ -111,11 +111,11 @@ class CMakeBuild(build_ext):
         )
         
         # Find and copy the built library to where setuptools expects it
-        lib_name = "libh5z_j2k.so"
+        lib_name = "libh5z_ebcc.so"
         if sys.platform == "win32":
-            lib_name = "h5z_j2k.dll"
+            lib_name = "h5z_ebcc.dll"
         elif sys.platform == "darwin":
-            lib_name = "libh5z_j2k.dylib"
+            lib_name = "libh5z_ebcc.dylib"
         
         # Look for the library in the install location
         installed_lib = src_lib_dir / "lib" / lib_name
@@ -145,7 +145,7 @@ class CMakeBuild(build_ext):
 
 setup(
     name="ebcc",
-    ext_modules=[CMakeExtension("libh5z_j2k", sourcedir=".")],
+    ext_modules=[CMakeExtension("libh5z_ebcc", sourcedir=".")],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
     python_requires=">=3.8",
