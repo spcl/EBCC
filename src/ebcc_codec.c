@@ -172,10 +172,8 @@ typedef struct {
 
 const char* residual_t_names[] = {
     "NONE",
-    "SPARSIFICATION_FACTOR",
     "MAX_ERROR",
-    "RELATIVE_ERROR",
-    "QUANTILE"
+    "RELATIVE_ERROR"
 };
 
 void print_config(codec_config_t *config) {
@@ -185,17 +183,11 @@ void print_config(codec_config_t *config) {
     switch (config->residual_compression_type) {
         case NONE:
             break;
-        case SPARSIFICATION_FACTOR:
-            log_info("sparsification:\t%f", config->residual_cr);
-            break;
         case MAX_ERROR:
             log_info("max error:\t%f", config->error);
             break;
         case RELATIVE_ERROR:
             log_info("relative error:\t%f", config->error);
-            break;
-        case QUANTILE:
-            log_info("quantile:\t%f", config->quantile);
             break;
     }
 }
@@ -385,7 +377,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     float residual_maxval = 0., residual_minval = 0., error_target = -1, current_cr = -1;
     size_t coeffs_size = 0, coeffs_size_orig = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
     double trunc_hi, trunc_lo, best_feasible_trunc;
-    double quantile = config->quantile, eps = 1e-8, base_error_quantile=1e-6;
+    double eps = 1e-8, base_error_quantile=1e-6;
     double cur_mean_error = 0.0;
 
     // Load base_error_quantile from env var EBCC_INIT_BASE_ERROR_QUANTILE, default to 1e-6 if not set
@@ -478,15 +470,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             residual_norm[i] = (residual[i] - residual_minval) / (residual_maxval - residual_minval);
         }
 
-        if (config->residual_compression_type == QUANTILE) {
-            assert(0); /* Deprecated */
-        } else if (config->residual_compression_type == SPARSIFICATION_FACTOR) {
-            
-            double q_ratio = 1. - (1. / config->residual_cr);
-            coeffs_trunc_bits = tot_size * 8 - (size_t) ((double)tot_size / config->residual_cr * 8 );
-            spiht_encode(residual_norm, image_dims[0], image_dims[1], &coeffs_buf, &coeffs_size_orig, coeffs_trunc_bits, WAVELET_LEVELS);
-            coeffs_size = coeffs_size_orig;
-        } else if (config->residual_compression_type == MAX_ERROR ||
+        if (config->residual_compression_type == MAX_ERROR ||
                 config->residual_compression_type == RELATIVE_ERROR) {
             error_target = config->error, current_cr = config->base_cr;
             if (config->residual_compression_type == RELATIVE_ERROR) {

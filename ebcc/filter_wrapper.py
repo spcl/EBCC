@@ -32,22 +32,15 @@ class EBCC_Filter(Mapping):
         if residual_type_str == "none":
             residual_type = 0
             hdf_filter_opts.append(residual_type)
-        elif residual_type_str == "quantile_target":
+        elif residual_type_str == "max_error_target":
             residual_type = 1
             hdf_filter_opts.extend([residual_type, float_to_uint32(residual_opt_val)])
-        elif residual_type_str == "max_error_target":
+        elif residual_type_str == "relative_error_target":
             residual_type = 2
             hdf_filter_opts.extend([residual_type, float_to_uint32(residual_opt_val)])
-        elif residual_type_str == "relative_error_target":
-            residual_type = 3
-            hdf_filter_opts.extend([residual_type, float_to_uint32(residual_opt_val)])
-        elif residual_type_str == "fixed_sparsification":
-            residual_type = 4
-            q_a, q_b = double_to_uint32(residual_opt_val)
-            hdf_filter_opts.extend([residual_type, q_a, q_b])
         else:
-            print(f""""Unknown residual_type {residual_type_str}, has to be one of 'quantile_target', 
-                  'max_error_target', 'relative_error_target' or 'fixed_sparsification""")
+            print(f""""Unknown residual_type {residual_type_str}, has to be one of 
+                  'max_error_target' or 'relative_error_target'""")
 
         self.hdf_filter_opts = tuple(hdf_filter_opts)
         self.chunks = (*[1 for _ in range(self.data_dim - 2)], height, width)
@@ -83,8 +76,6 @@ if __name__ == "__main__":
     parser.add_argument('-W', '--width', type=int, default=1440, help='width of the data slice or size of longitude dim')
     parser.add_argument('-m', '--max_error_target', default=None, type=float, help='max error target')
     parser.add_argument('-r', '--relative_error_target', default=None, type=float, help='relative error target')
-    parser.add_argument('-q', '--quantile_target', default=None, type=float, help='[DEPRECATED!] quantile target')
-    parser.add_argument('-s', '--fixed_sparsification', default=None, type=float, help='[DEPRECATED!] fixed sparsification')
     parser.add_argument('--help-cdo', action='store_true', help='print CDO help')
 
     args = parser.parse_args()
@@ -93,22 +84,12 @@ if __name__ == "__main__":
 
     base_cr = float(args.base_cr)
 
-    if args.quantile_target:
-        residual_opt_val = float(args.quantile_target)
-        residual_type = "quantile_target"
-        print("Quantial target option is deprecated!", file=sys.stderr)
-        exit(1)
-    elif args.max_error_target:
+    if args.max_error_target:
         residual_opt_val = float(args.max_error_target)
         residual_type = "max_error_target"
     elif args.relative_error_target:
         residual_opt_val = float(args.relative_error_target)
         residual_type = "relative_error_target"
-    elif args.fixed_sparsification:
-        residual_opt_val = float(args.fixed_sparsification)
-        residual_type = "fixed_sparsification"
-        print("Fixed sparsification option is deprecated!", file=sys.stderr)
-        exit(1)
     else:
         print('Using default settings: relative error target of 0.01', file=sys.stderr)
         residual_opt_val = 0.01

@@ -62,18 +62,10 @@ void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned in
         case NONE:
             assert(cd_nelmts == 4);
             break;
-        case SPARSIFICATION_FACTOR:
-            assert(cd_nelmts == 5);
-            config->residual_cr = uint_ptr_to_float(&cd_values[4]);
-            break;
         case MAX_ERROR:
         case RELATIVE_ERROR:
             assert(cd_nelmts == 5);
             config->error = uint_ptr_to_float(&cd_values[4]);
-            break;
-        case QUANTILE:
-            assert(cd_nelmts == 6);
-            config->quantile = uint_ptr_to_double(&cd_values[4]);
             break;
     }
 }

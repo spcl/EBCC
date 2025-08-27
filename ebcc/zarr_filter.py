@@ -13,7 +13,6 @@ class CodecConfigT(ctypes.Structure):
         ('residual_compression_type', ctypes.c_int),
         ('residual_cr', ctypes.c_float),
         ('error', ctypes.c_float),
-        ('quantile', ctypes.c_double),
     ]
 
 class EBCCZarrFilter(Codec):
