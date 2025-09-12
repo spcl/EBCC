@@ -5,6 +5,8 @@
 #include <stddef.h>
 
 #define NDIMS 3
+#define EBCC_VERSION_MAJOR 0
+#define EBCC_VERSION_MINOR 1
 
 typedef enum {
     NONE,
