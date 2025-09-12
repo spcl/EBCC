@@ -1,0 +1,67 @@
+name: Build HDF5 Filter
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            lib_name: libh5z_ebcc.so
+            archive_name: h5z-ebcc-ubuntu-latest.zip
+          - os: windows-latest
+            lib_name: h5z_ebcc.dll
+            archive_name: h5z-ebcc-windows-latest.zip
+          - os: macos-latest
+            lib_name: libh5z_ebcc.dylib
+            archive_name: h5z-ebcc-macos-latest.zip
+
+    steps:
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install wheel cmake
+
+    - name: Build wheel
+      run: pip wheel . -w dist --no-deps
+
+    - name: Unpack wheel and find library
+      shell: bash
+      run: |
+        # Unzip the wheel file to a temporary directory
+        unzip dist/*.whl -d wheel_contents
+        
+        # Find the library file and move it to a known location
+        find wheel_contents -name "${{ matrix.lib_name }}" -exec mv {} . \;
+
+    - name: Archive dynamic library (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: zip ${{ matrix.archive_name }} ${{ matrix.lib_name }}
+
+    - name: Archive dynamic library (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: Compress-Archive -Path ${{ matrix.lib_name }} -DestinationPath ${{ matrix.archive_name }}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.archive_name }}
+        path: ${{ matrix.archive_name }}
