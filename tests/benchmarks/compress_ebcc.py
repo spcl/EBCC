@@ -22,8 +22,6 @@ ebcc_filter = EBCC_Filter(
     filter_path=os.path.join(base_folder, 'src/build/lib')) # directory to the compiled HDF5 filter plugin
     # other possible residual_opt can be
     # `("max_error_target", xxx)` : the max_error does not exceed the specified value
-    # `("quantile_target", xxx)` : specifies the quantile used to sparsify the wavelet transformed residual
-    # `("fixed_sparsification", xxx)`: specify a fixed sparsification ratio for the sparse wavelet compression
 
 ebcc_filter = dict(ebcc_filter)
 dtype = ebcc_filter.pop('dtype')

@@ -13,7 +13,6 @@ class CodecConfigT(ctypes.Structure):
         ('residual_compression_type', ctypes.c_int),
         ('residual_cr', ctypes.c_float),
         ('error', ctypes.c_float),
-        ('quantile', ctypes.c_double),
     ]
 
 class EBCCZarrFilter(Codec):
@@ -34,14 +33,14 @@ class EBCCZarrFilter(Codec):
             ndpointer(ctypes.c_uint, flags="C_CONTIGUOUS"),
             ctypes.c_size_t
         ]
-        self.lib.encode_climate_variable.restype = ctypes.c_size_t
-        self.lib.encode_climate_variable.argtypes = [
+        self.lib.ebcc_encode.restype = ctypes.c_size_t
+        self.lib.ebcc_encode.argtypes = [
             ndpointer(ctypes.c_float, flags="C_CONTIGUOUS"),
             ctypes.POINTER(CodecConfigT),
             ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte))
         ]
-        self.lib.decode_climate_variable.restype = ctypes.c_size_t
-        self.lib.decode_climate_variable.argtypes = [
+        self.lib.ebcc_decode.restype = ctypes.c_size_t
+        self.lib.ebcc_decode.argtypes = [
             ctypes.c_void_p,
             ctypes.c_size_t,
             ctypes.POINTER(ctypes.POINTER(ctypes.c_float))
@@ -55,7 +54,7 @@ class EBCCZarrFilter(Codec):
         codec_config = CodecConfigT()
         buf = np.ascontiguousarray(buf, dtype=np.float32).ravel()
         self.lib.populate_config(ctypes.byref(codec_config), len(self.arglist), self.arglist, buf.nbytes)
-        encoded_size = self.lib.encode_climate_variable(buf, ctypes.byref(codec_config), ctypes.byref(out_buffer))
+        encoded_size = self.lib.ebcc_encode(buf, ctypes.byref(codec_config), ctypes.byref(out_buffer))
 
         out_array = ctypes.cast(out_buffer, ctypes.POINTER(ctypes.c_ubyte * encoded_size)).contents
 
@@ -72,7 +71,7 @@ class EBCCZarrFilter(Codec):
             out_buffer = ctypes.POINTER(ctypes.c_float)()
         array_type = ctypes.c_ubyte * len(buf)
         buf_c = array_type.from_buffer_copy(buf)
-        decoded_size = self.lib.decode_climate_variable(ctypes.byref(buf_c), len(buf), ctypes.byref(out_buffer))
+        decoded_size = self.lib.ebcc_decode(ctypes.byref(buf_c), len(buf), ctypes.byref(out_buffer))
 
         if out is not None:
             return out

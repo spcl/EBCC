@@ -2,11 +2,11 @@ import os
 import sys
 
 if sys.platform.startswith('linux'):
-    lib_name = 'libh5z_j2k.so'
+    lib_name = 'libh5z_ebcc.so'
 elif sys.platform == 'darwin':
-    lib_name = 'libh5z_j2k.dylib'
+    lib_name = 'libh5z_ebcc.dylib'
 #elif sys.platform == 'win32':
-#    lib_name = 'h5z_j2k.dll'
+#    lib_name = 'h5z_ebcc.dll'
 else:
     raise RuntimeError(f"Unsupported platform: {sys.platform}")
 

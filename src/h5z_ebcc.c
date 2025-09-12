@@ -5,28 +5,28 @@
 #include "ebcc_codec.h"
 #include "log.h"
 
-#define H5Z_FILTER_J2K 308
+#define H5Z_FILTER_EBCC 308
 
-static size_t H5Z_filter_j2k(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t *buf_size, void **buf);
+static size_t H5Z_filter_ebcc(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t *buf_size, void **buf);
 
-/*static htri_t can_apply_j2k(hid_t dcpl_id, hid_t type_id, hid_t space_id);*/
+/*static htri_t can_apply_ebcc(hid_t dcpl_id, hid_t type_id, hid_t space_id);*/
 
 
-const H5Z_class2_t H5Z_J2K[1] = {{
+const H5Z_class2_t H5Z_EBCC[1] = {{
     H5Z_CLASS_T_VERS,               /* H5Z_class_t version */
-    (H5Z_filter_t) H5Z_FILTER_J2K,  /* Filter id number             */
+    (H5Z_filter_t) H5Z_FILTER_EBCC,  /* Filter id number             */
     1,                              /* encoder_present flag (set to true) */
     1,                              /* decoder_present flag (set to true) */
     "HDF5 EBCC filter L&L",         /* Filter name for debugging    */
     NULL,                           /* The "can apply" callback     */
     NULL,                           /* The "set local" callback     */
-    (H5Z_func_t) H5Z_filter_j2k,    /* The actual filter function   */
+    (H5Z_func_t) H5Z_filter_ebcc,    /* The actual filter function   */
 }};
 
 
 
 H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; }
-const void *H5PLget_plugin_info(void) { return H5Z_J2K; }
+const void *H5PLget_plugin_info(void) { return H5Z_EBCC; }
 
 float uint_ptr_to_float(const unsigned int *ptr) {
     return *((float *) ptr);
@@ -62,18 +62,10 @@ void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned in
         case NONE:
             assert(cd_nelmts == 4);
             break;
-        case SPARSIFICATION_FACTOR:
-            assert(cd_nelmts == 5);
-            config->residual_cr = uint_ptr_to_float(&cd_values[4]);
-            break;
         case MAX_ERROR:
         case RELATIVE_ERROR:
             assert(cd_nelmts == 5);
             config->error = uint_ptr_to_float(&cd_values[4]);
-            break;
-        case QUANTILE:
-            assert(cd_nelmts == 6);
-            config->quantile = uint_ptr_to_double(&cd_values[4]);
             break;
     }
 }
@@ -81,7 +73,7 @@ void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned in
 /* can_apply func*/
 /* need hdf5_dl.c from hdf5plugins*/
 /*
-static htri_t can_apply_j2k(hid_t dcpl_id, hid_t type_id, hid_t space_id) {
+static htri_t can_apply_ebcc(hid_t dcpl_id, hid_t type_id, hid_t space_id) {
     H5D_layout_t layout;
     H5T_class_t class;
     htri_t is_float;
@@ -107,12 +99,12 @@ static htri_t can_apply_j2k(hid_t dcpl_id, hid_t type_id, hid_t space_id) {
  *  max error (as float) OR quantile (as double)
 */
 // cd_values should be: frame rows, frame columns, compression_ratio, quantile (thousandth), levels, quantile (optional)
-static size_t H5Z_filter_j2k(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t *buf_size, void **buf) {
+static size_t H5Z_filter_ebcc(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t *buf_size, void **buf) {
     if (flags & H5Z_FLAG_REVERSE) {
         // decompress data
 
         float *out_buffer = NULL;
-        *buf_size = decode_climate_variable(*buf, nbytes, &out_buffer);
+        *buf_size = ebcc_decode(*buf, nbytes, &out_buffer);
 
         free_buffer(*buf);
         *buf = out_buffer;
@@ -124,7 +116,7 @@ static size_t H5Z_filter_j2k(unsigned int flags, size_t cd_nelmts, const unsigne
         populate_config(&config, cd_nelmts, cd_values, *buf_size);
 
         uint8_t *out_buffer = NULL;
-        *buf_size = encode_climate_variable(*buf, &config, &out_buffer);
+        *buf_size = ebcc_encode(*buf, &config, &out_buffer);
 
         free_buffer(*buf);
         *buf = out_buffer;
