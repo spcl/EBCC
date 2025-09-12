@@ -5,23 +5,35 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  release:
+    types: [ published ]
+
+# Need write permission to upload release assets
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - os: ubuntu-latest
+            arch: amd64
             lib_name: libh5z_ebcc.so
-            archive_name: h5z-ebcc-ubuntu-latest.zip
-          - os: windows-latest
-            lib_name: h5z_ebcc.dll
-            archive_name: h5z-ebcc-windows-latest.zip
+            archive_name: ebcc-h5plugin-linux-amd64.zip
+          - os: ubuntu-latest
+            arch: arm64
+            lib_name: libh5z_ebcc.so
+            archive_name: ebcc-h5plugin-linux-arm64.zip
+          # - os: windows-latest
+          #   arch: amd64
+          #   lib_name: h5z_ebcc.dll
+          #   archive_name: ebcc-h5plugin-windows-amd64.zip
           - os: macos-latest
+            arch: arm64
             lib_name: libh5z_ebcc.dylib
-            archive_name: h5z-ebcc-macos-latest.zip
+            archive_name: ebcc-h5plugin-macos-arm64.zip
 
     steps:
     - name: Checkout repository and submodules
@@ -65,3 +77,11 @@ jobs:
       with:
         name: ${{ matrix.archive_name }}
         path: ${{ matrix.archive_name }}
+
+    - name: Upload asset to GitHub Release
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ${{ matrix.archive_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -33,7 +33,15 @@ option(BUILD_CODEC "Build OPENJPEG CLI APPS" OFF)
 add_subdirectory(zstd/build/cmake zstd)
 add_subdirectory(openjpeg)
 
-include_directories(zstd/lib openjpeg/src/lib/openjp2 ${CMAKE_CURRENT_BINARY_DIR}/openjpeg/src/lib/openjp2 spiht log)
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}/zstd/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/zstd/build/cmake/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/openjpeg/src/lib/openjp2
+  ${CMAKE_CURRENT_BINARY_DIR}/openjpeg/src/lib/openjp2
+  ${CMAKE_CURRENT_SOURCE_DIR}/spiht
+  ${CMAKE_CURRENT_SOURCE_DIR}/log
+)
+
 target_link_libraries(h5z_ebcc PRIVATE libzstd_static openjp2_static)
 target_link_libraries(ebcc PRIVATE libzstd_static openjp2_static)
 
