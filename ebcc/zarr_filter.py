@@ -24,6 +24,8 @@ class EBCCZarrFilter(Codec):
             self.c_stdlib = ctypes.CDLL('libc.so.6')
         elif sys.platform == 'darwin':
             self.c_stdlib = ctypes.CDLL('libc.dylib')
+        elif sys.platform == 'win32':
+            self.c_stdlib = ctypes.CDLL('msvcrt.dll')
         else:
             raise RuntimeError("Unsupported platform: " + sys.platform)
         self.lib = ctypes.CDLL(EBCC_FILTER_PATH)

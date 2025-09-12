@@ -7,7 +7,7 @@ name = "ebcc"
 version = "0.1.0"
 description = "Error Bounded Climate Compressor - HDF5 filter for scientific data compression"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "EBCC Contributors"}
 ]
