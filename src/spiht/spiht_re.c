@@ -1,4 +1,5 @@
 /* Re-implementation of René Puchinger's SPIHT program: https://github.com/gilson27/imshrinker */
+#include "log.h"
 #include "spiht_re.h"
 #include "dwt.h"
 #include "ml.h"
@@ -492,8 +493,8 @@ void spiht_decode(uint8_t* buffer_in, size_t input_size, elem_t* buffer_out, siz
     size_t bits0 = (size_t) bitio_get_bits(bio, 29);
     size_t offset = 128; /* 128 (114) for metadata bits */
     if (num_bits > bits0) {
-        fprintf(stderr, "Warning: num_bits: %d > bits0: %d, taking bits0 instead\n", num_bits, bits0);
-        fprintf(stderr, "Warning: num_stages: %d, size_x: %d, size_y: %d, extra_x: %d, extra_y: %d\n", num_stages, size_x, size_y, extra_x, extra_y);
+        log_warn("Warning: num_bits: %zd > bits0: %zd, taking bits0 instead", num_bits, bits0);
+        log_warn("Warning: num_stages: %zd, size_x: %zd, size_y: %zd, extra_x: %zd, extra_y: %zd", num_stages, size_x, size_y, extra_x, extra_y);
         if (bits0) num_bits = bits0; else assert(0);
     }
     num_bits -= offset;
