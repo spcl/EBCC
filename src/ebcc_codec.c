@@ -568,8 +568,6 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             compressed_size = ZSTD_compress(compressed_coefficients, compressed_size, coeffs_buf, coeffs_size * sizeof(uint8_t), 22);
         }
 
-        log_info("coeffs_size: %lu, compressed_size: %lu, jp2_length: %lu, compression ratio: %f", coeffs_size, compressed_size, codec_data_buffer.length, (float) (tot_size * sizeof(float)) / (compressed_size + codec_data_buffer.length));
-
         /* Try again with pure j2k compression , to see if adding residual compression has higher compression ratio */
         jp2_buffer_length = codec_data_buffer.length;
         size_t jp2_buffer_size_limit = 2 * (compressed_size + jp2_buffer_length);
@@ -630,6 +628,8 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             sizeof(size_t) /* compressed_size */ + 
             compressed_size + codec_size;
     *out_buffer = (uint8_t *) malloc(out_size);
+
+    log_info("coeffs_size: %lu, compressed_size: %lu, jp2_length: %lu, compression ratio: %f", coeffs_size, compressed_size, codec_size, (double) (tot_size * sizeof(float)) / out_size);
 
     uint8_t *iter = *out_buffer;
     memcpy(iter, &minval, sizeof(float));
@@ -745,6 +745,8 @@ size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
         j2k_decode_internal(out_buffer, &height, &width, minval, maxval, &codec_data_buffer);
         tot_size = height * width;
     }
+
+    log_info("Compression Ratio: %f", (double) (tot_size * sizeof(float)) / data_size);
 
     if (compressed_coefficient_size > 0 && coeffs_size > 0) {
         uint8_t *coeffs = (uint8_t *) calloc(coeffs_size, sizeof(uint8_t));
