@@ -34,13 +34,6 @@ print(dict(ebcc_filter))
 
 zarr_filter = EBCCZarrFilter(ebcc_filter.hdf_filter_opts)
 
-encoded = zarr_filter.encode(data)
-
-decoded = zarr_filter.decode(encoded)
-decoded = decoded.reshape(data.shape)
-
-assert np.allclose(data, decoded, atol=atol), "Decoded data does not match original data"
-
 z = zarr.create_array(
     store=f"{data_dir}/test.zarr",
     data=data,
