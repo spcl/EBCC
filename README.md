@@ -1,6 +1,8 @@
 EBCC: Error Bounded Climate Compressor
 ======================================
 
+[![arXiv](http://img.shields.io/badge/cs.CE-arXiv%3A2510.22265-B31B1B.svg)](https://arxiv.org/abs/2510.22265)
+
 # Build with pip
 ```python
 pip install -e .
