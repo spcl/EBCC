@@ -16,18 +16,17 @@ class CMakeExtension(Extension):
 class CMakeBuild(build_ext):
     def build_extension(self, ext):
         ext_path = Path(self.get_ext_fullpath(ext.name)).resolve()
-        extdir = ext_path.parent
-        extdir_str = str(extdir)
-        
-        # Required for auto-detection & inclusion of auxiliary "native" libs
-        if not extdir_str.endswith(os.path.sep):
-            extdir_str += os.path.sep
 
         debug = int(os.environ.get("DEBUG", 0)) if self.debug is None else self.debug
         cfg = 'Debug' if debug else 'Release'
+        build_temp = (Path(self.build_temp) / ext.name).resolve()
+        build_temp.mkdir(parents=True, exist_ok=True)
+        lib_output_dir = build_temp / "lib"
+        lib_output_dir.mkdir(parents=True, exist_ok=True)
+        lib_output_dir_str = str(lib_output_dir)
 
         cmake_args = [
-            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir_str}",
+            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={lib_output_dir_str}",
             f"-DCMAKE_BUILD_TYPE={cfg}",  # not used on MSVC, but no harm
         ]
         build_args = []
@@ -54,7 +53,7 @@ class CMakeBuild(build_ext):
             # Multi-config generators have a different way to specify configs
             if not single_config:
                 cmake_args += [
-                    f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={extdir}"
+                    f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={lib_output_dir_str}"
                 ]
                 build_args += ["--config", cfg]
 
@@ -72,10 +71,6 @@ class CMakeBuild(build_ext):
             if hasattr(self, "parallel") and self.parallel:
                 # CMake 3.12+ only.
                 build_args += [f"-j{self.parallel}"]
-
-        build_temp = Path(self.build_temp) / ext.name
-        if not build_temp.exists():
-            build_temp.mkdir(parents=True)
 
         # Check if git submodules are initialized
         src_dir = Path(ext.sourcedir) / "src"
@@ -116,12 +111,12 @@ class CMakeBuild(build_ext):
 
         # Look for the library produced by CMake
         candidates = [
-            extdir / lib_name,
-            extdir / ext_path.name,
             build_temp / "lib" / lib_name,
             build_temp / "lib" / ext_path.name,
         ]
         built_lib = next((p for p in candidates if p.exists()), None)
+
+        print(f"Built library candidates: {[str(p) for p in candidates]}")
         
         if built_lib:
             import shutil
@@ -136,7 +131,7 @@ class CMakeBuild(build_ext):
             print(f"Copied {built_lib.name} to {runtime_target}")
         else:
             print(f"Warning: Could not find built library {lib_name}")
-            print(f"Searched in: {extdir}, {build_temp / 'lib'}, {build_temp}")
+            print(f"Searched in: {build_temp / 'lib'}, {build_temp}")
             # List files to debug
             if build_temp.exists():
                 print(f"Build temp contents: {list(build_temp.iterdir())}")
@@ -147,7 +142,8 @@ class CMakeBuild(build_ext):
 
 setup(
     name="ebcc",
-    ext_modules=[CMakeExtension("libh5z_ebcc", sourcedir=".")],
+    packages=["ebcc"],
+    ext_modules=[CMakeExtension("ebcc.libh5z_ebcc", sourcedir=os.path.dirname(__file__))],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
     python_requires=">=3.8",
