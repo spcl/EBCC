@@ -27,6 +27,11 @@ dependencies = [
     "xarray>=0.16.0"
 ]
 
+#[project.entry-points."zarr.codecs"]
+# Only expose this plugin when the optional zarr extra is installed
+# need to be wrapped with EBCCZarrFilter or subclassing zarr.codecs.ArrayBytesCodec
+#ebcc-filter = "ebcc.zarr_filter:EBCCZarrFilter [zarr]"
+
 [project.optional-dependencies]
 zarr = [
     "zarr >=3.1.1",
