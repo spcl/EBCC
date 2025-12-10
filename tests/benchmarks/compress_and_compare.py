@@ -1,6 +1,6 @@
 import os
 base_folder = "/home/huanglangwen/Documents/compression-filter"
-os.environ["HDF5_PLUGIN_PATH"] = os.path.join(base_folder, 'src/build/lib')
+os.environ["HDF5_PLUGIN_PATH"] = os.path.join(base_folder, 'ebcc')
 import sys
 sys.path.append(base_folder)
 import xarray as xr
@@ -27,7 +27,7 @@ def prepare_encoding(method, abs_target, height, width, data_dim):
         filter = EBCC_Filter(
             base_cr=30, height=height, width=width,
             data_dim=data_dim, residual_opt=("max_error_target", abs_target),
-            filter_path=os.path.join(base_folder, 'src/build/lib'))
+            filter_path=os.path.join(base_folder, 'ebcc'))
     elif method == "sz":
         filter = hdf5plugin.SZ(absolute=abs_target)
     elif method == "sz3":

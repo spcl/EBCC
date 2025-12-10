@@ -1,4 +1,5 @@
 __pycache__
+build
 src/build
 src/share
 data/test.hdf5
@@ -8,6 +9,8 @@ data/compressed.nc
 .vscode
 *.nc
 *.so
+*.dylib
+*.dll
 CLAUDE.md
 ebcc.egg-info
 ebcc/__pycache__

@@ -15,17 +15,19 @@ class CMakeExtension(Extension):
 
 class CMakeBuild(build_ext):
     def build_extension(self, ext):
-        extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
+        ext_path = Path(self.get_ext_fullpath(ext.name)).resolve()
+        extdir = ext_path.parent
+        extdir_str = str(extdir)
         
         # Required for auto-detection & inclusion of auxiliary "native" libs
-        if not extdir.endswith(os.path.sep):
-            extdir += os.path.sep
+        if not extdir_str.endswith(os.path.sep):
+            extdir_str += os.path.sep
 
         debug = int(os.environ.get("DEBUG", 0)) if self.debug is None else self.debug
         cfg = 'Debug' if debug else 'Release'
 
         cmake_args = [
-            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}",
+            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir_str}",
             f"-DCMAKE_BUILD_TYPE={cfg}",  # not used on MSVC, but no harm
         ]
         build_args = []
@@ -100,15 +102,10 @@ class CMakeBuild(build_ext):
             check=True,
         )
 
-        src_lib_dir = Path(ext.sourcedir) / "src" / "build" 
+        src_lib_dir = Path(ext.sourcedir) / "ebcc"
         src_lib_dir.mkdir(parents=True, exist_ok=True)
         
         # Run CMake install to copy the library to the right location
-        subprocess.run(
-            ["cmake", "--install", ".", f"--prefix={src_lib_dir}"],
-            cwd=build_temp,
-            check=True,
-        )
         
         # Find and copy the built library to where setuptools expects it
         lib_name = "libh5z_ebcc.so"
@@ -116,25 +113,30 @@ class CMakeBuild(build_ext):
             lib_name = "h5z_ebcc.dll"
         elif sys.platform == "darwin":
             lib_name = "libh5z_ebcc.dylib"
+
+        # Look for the library produced by CMake
+        candidates = [
+            extdir / lib_name,
+            extdir / ext_path.name,
+            build_temp / "lib" / lib_name,
+            build_temp / "lib" / ext_path.name,
+        ]
+        built_lib = next((p for p in candidates if p.exists()), None)
         
-        # Look for the library in the install location
-        installed_lib = src_lib_dir / "lib" / lib_name
-        if not installed_lib.exists():
-            # Try the build directory
-            installed_lib = build_temp / "lib" / lib_name
-            if not installed_lib.exists():
-                installed_lib = build_temp / lib_name
-        
-        # Copy to the location setuptools expects (where the .so should be)
-        if installed_lib.exists():
+        if built_lib:
             import shutil
-            target_lib = Path(self.get_ext_fullpath(ext.name))
-            target_lib.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(installed_lib, target_lib)
-            print(f"Copied {lib_name} to {target_lib}")
+            # Copy to where setuptools expects the built extension
+            if not ext_path.exists():
+                ext_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(built_lib, ext_path)
+                print(f"Copied {built_lib.name} to {ext_path}")
+            # Copy to runtime location inside the package
+            runtime_target = src_lib_dir / lib_name
+            shutil.copy2(built_lib, runtime_target)
+            print(f"Copied {built_lib.name} to {runtime_target}")
         else:
             print(f"Warning: Could not find built library {lib_name}")
-            print(f"Searched in: {src_lib_dir / 'lib'}, {build_temp / 'lib'}, {build_temp}")
+            print(f"Searched in: {extdir}, {build_temp / 'lib'}, {build_temp}")
             # List files to debug
             if build_temp.exists():
                 print(f"Build temp contents: {list(build_temp.iterdir())}")

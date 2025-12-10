@@ -11,7 +11,7 @@ else:
     raise RuntimeError(f"Unsupported platform: {sys.platform}")
 
 
-EBCC_FILTER_DIR = os.path.join(os.path.dirname(__file__), "../src/build/lib")
+EBCC_FILTER_DIR = os.path.dirname(__file__)
 EBCC_FILTER_PATH = os.path.join(EBCC_FILTER_DIR, lib_name)
 
 if not os.path.exists(EBCC_FILTER_PATH):

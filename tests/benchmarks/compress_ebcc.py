@@ -1,7 +1,7 @@
 import os
 import pyproj # Avoids HDF5 plugin error
 base_folder = "/home/huanglangwen/Documents/compression-filter"
-os.environ["HDF5_PLUGIN_PATH"] = os.path.join(base_folder, 'src/build/lib')
+os.environ["HDF5_PLUGIN_PATH"] = os.path.join(base_folder, 'ebcc')
 import sys
 sys.path.append(base_folder)
 import h5py
@@ -19,7 +19,7 @@ ebcc_filter = EBCC_Filter(
     width=data.shape[-1],  # width of each 2D data chunk
     data_dim=len(data.shape), # data dimension, required to specify the HDF5 chunk shape
     residual_opt=("max_error_target", 10.0),# specify the relative error target to be 0.0019
-    filter_path=os.path.join(base_folder, 'src/build/lib')) # directory to the compiled HDF5 filter plugin
+    filter_path=os.path.join(base_folder, 'ebcc')) # directory to the compiled HDF5 filter plugin
     # other possible residual_opt can be
     # `("max_error_target", xxx)` : the max_error does not exceed the specified value
 
