@@ -125,10 +125,6 @@ class CMakeBuild(build_ext):
                 ext_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(built_lib, ext_path)
                 print(f"Copied {built_lib.name} to {ext_path}")
-            # Copy to runtime location inside the package
-            runtime_target = src_lib_dir / lib_name
-            shutil.copy2(built_lib, runtime_target)
-            print(f"Copied {built_lib.name} to {runtime_target}")
         else:
             print(f"Warning: Could not find built library {lib_name}")
             print(f"Searched in: {build_temp / 'lib'}, {build_temp}")
