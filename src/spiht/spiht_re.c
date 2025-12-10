@@ -121,7 +121,7 @@ static inline bool_t is_significant_pixel(int_t step, elem_t val) {
     /* Version 1: return (((int_t) fabs(val)) >= (1 << step)); */
     /* Version 2: return (( fabs(val)) >= (double) (1 << step)); */
     /* Version 3: (used in imshrinker)*/
-    return abs((int_t) val) >= (1 << step);
+    return llabs((int_t) val) >= (1 << step);
 }
 
 static inline void get_successor(int_t x, int_t y, DWTData* dwt_data, int_t* sx, int_t* sy) {
@@ -308,7 +308,7 @@ void spiht_encode_process(size_t bits, BitIOStreamState* bio, DWTData* dwt_data,
         for (size_t i = 0; i < lsp->curr; i++) {
             elem_t val = dwt_data->data[ml_get(lsp, i)];
             if (is_significant_pixel(step+1, val)) {
-                bitio_put_bit(bio, (uint8_t) (( ((int_t) abs((int_t) val)) >> step) & 1));
+                bitio_put_bit(bio, (uint8_t) (( ((int_t) llabs((int_t) val)) >> step) & 1));
                 if (++bit_cnt > bits) return;
             }
         }
