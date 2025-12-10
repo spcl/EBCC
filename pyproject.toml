@@ -91,7 +91,7 @@ filterwarnings = [
 ]
 
 [tool.setuptools]
-py-modules = ["ebcc"]  # Include the Python wrapper
+packages = ["ebcc"]  # Ship the ebcc package directory
 
 [tool.setuptools.package-data]
 "*" = ["*.so", "*.dll", "*.dylib"]
