@@ -25,7 +25,7 @@ void ml_free(MaskedList* ml) {
     free(ml);
 }
 
-inline void ml_push(MaskedList* ml, int_t value) {
+extern inline void ml_push(MaskedList* ml, int_t value) {
 #ifdef DEBUG
     assert(ml->curr < ml->capacity);
 #endif
@@ -33,7 +33,7 @@ inline void ml_push(MaskedList* ml, int_t value) {
     ml->size++;
 }
 
-inline int_t ml_get(MaskedList* ml, size_t index) {
+extern inline int_t ml_get(MaskedList* ml, size_t index) {
 #ifdef DEBUG
     assert(index < ml->curr);
     assert(ml->mask[index] == 0);
@@ -41,7 +41,7 @@ inline int_t ml_get(MaskedList* ml, size_t index) {
     return ml->values[index];
 }
 
-inline void ml_remove(MaskedList* ml, size_t index) {
+extern inline void ml_remove(MaskedList* ml, size_t index) {
 #ifdef DEBUG
     assert(index < ml->curr);
 #endif
