@@ -26,7 +26,6 @@ set_property(TARGET h5z_ebcc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Add static EBCC library for Rust bindings
 add_library(ebcc STATIC ebcc_codec.c spiht/spiht_re.c log/log.c)
-set_property(TARGET ebcc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 option(ZSTD_BUILD_PROGRAMS "" OFF)
 option(BUILD_CODEC "Build OPENJPEG CLI APPS" OFF)
