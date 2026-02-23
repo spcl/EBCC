@@ -299,7 +299,7 @@ void findMinMaxf(const float *array, size_t size, float *min, float *max) {
 double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr, 
                              codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval, 
                              float *data, size_t tot_size, float error_target) {
-    codec_data_buffer_init(codec_data_buffer);
+    codec_data_buffer_reset(codec_data_buffer);
     j2k_encode_internal(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer);
     codec_data_buffer_reset(codec_data_buffer);
     j2k_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
@@ -578,7 +578,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             assert(error_target > 0);
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
             if (!pure_j2k_consistency_disabled) {
-                codec_data_buffer_init(&codec_data_buffer);
+                codec_data_buffer_reset(&codec_data_buffer);
                 j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
                 codec_data_buffer_reset(&codec_data_buffer);
                 j2k_decode_internal(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);

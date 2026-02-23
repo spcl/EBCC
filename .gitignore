@@ -16,3 +16,4 @@ ebcc.egg-info
 ebcc/__pycache__
 data/test.zarr
 .venv
+*.DS_Store
