@@ -36,3 +36,5 @@ if EBCC_FILTER_PATH is None:
         f"Tried: {candidates}. "
         "Please ensure the library is built and available in the expected directory."
     )
+
+EBCC_FILTER_DIR = str(EBCC_FILTER_DIR)
