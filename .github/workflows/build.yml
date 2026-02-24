@@ -87,7 +87,7 @@ jobs:
       shell: bash
       run: |
         python -m pip install .
-        PYTHONPATH=. python examples/example_hdf5.py
+        python examples/example_hdf5.py
     
 
     - name: Upload asset to GitHub Release
