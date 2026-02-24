@@ -3,6 +3,21 @@ EBCC: Error Bounded Climate Compressor
 
 [![arXiv](http://img.shields.io/badge/cs.CE-arXiv%3A2510.22265-B31B1B.svg)](https://arxiv.org/abs/2510.22265)
 
+# Prebuilt binaries
+
+Prebuilt wheels and HDF5 plugin archives are available on the [GitHub Releases](https://github.com/spcl/EBCC/releases) page for Linux (amd64, arm64) and macOS (arm64).
+
+**Python wheel** (recommended — includes everything):
+```bash
+pip install ebcc-*.whl
+```
+
+**HDF5 plugin only** (for use with CDO or other HDF5 applications):
+```bash
+unzip ebcc-h5plugin-<platform>.zip
+export HDF5_PLUGIN_PATH=$(pwd)
+```
+
 # Build with pip
 ```python
 pip install -e .
