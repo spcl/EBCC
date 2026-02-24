@@ -18,6 +18,8 @@ else()
 endif()
 set(BUILD_THIRDPARTY True)
 
+option(ENABLE_PERF "Enable Linux perf event collection around compression" OFF)
+
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 
 
@@ -43,6 +45,11 @@ include_directories(
 
 target_link_libraries(h5z_ebcc PRIVATE libzstd_static openjp2_static)
 target_link_libraries(ebcc PRIVATE libzstd_static openjp2_static)
+
+if(ENABLE_PERF)
+    target_compile_definitions(h5z_ebcc PRIVATE ENABLE_PERF)
+    target_compile_definitions(ebcc PRIVATE ENABLE_PERF)
+endif()
 
 install(
     TARGETS h5z_ebcc ebcc

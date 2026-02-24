@@ -5,6 +5,9 @@
 #include <math.h>
 #include <time.h>
 #include "log.h"
+#ifdef ENABLE_PERF
+#include <sys/prctl.h>
+#endif
 
 #include "openjpeg.h"
 #include "zstd.h"
@@ -369,6 +372,9 @@ void check_nan_inf(const float *data, const size_t tot_size) {
 }
 
 size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
+#ifdef ENABLE_PERF
+    prctl(PR_TASK_PERF_EVENTS_ENABLE);
+#endif
     int pure_j2k_required = FALSE, pure_j2k_done = FALSE, pure_j2k_disabled = FALSE, pure_j2k_consistency_disabled = FALSE, mean_error_adjustment_disabled = FALSE;
     size_t compressed_size = 0, jp2_buffer_length = 0;
     uint8_t *compressed_coefficients = NULL;
@@ -660,6 +666,9 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
 
     codec_data_buffer_destroy(&codec_data_buffer);
 
+#ifdef ENABLE_PERF
+    prctl(PR_TASK_PERF_EVENTS_DISABLE);
+#endif
     return out_size;
 }
 
