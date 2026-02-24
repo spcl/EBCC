@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ebcc"
-version = "0.1.1"
+version = "0.1.2"
 description = "Error Bounded Climate Compressor - HDF5 filter for scientific data compression"
 readme = "README.md"
 license = "MIT"
