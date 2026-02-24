@@ -1,5 +1,11 @@
 #include "spiht_re.h"
 
+static const elem_t dwt_alpha = -1.586134342;
+static const elem_t dwt_beta  = -0.05298011854;
+static const elem_t dwt_gamma =  0.8829110762;
+static const elem_t dwt_delta =  0.44355068522;
+static const elem_t dwt_xi    =  1.149604398;
+
 typedef enum {
     IMAGE,
     DWTCOEFF,
@@ -79,132 +85,190 @@ void free_image(DWTData* dwt_data) {
 
 
 void dwt_row(DWTData* dwt_data, size_t row, size_t num_items) {
-    const elem_t alpha = -1.586134342;
-    const elem_t beta = -0.05298011854;
-    const elem_t gamma = 0.8829110762;
-    const elem_t delta = 0.44355068522;
-    const elem_t xi = 1.149604398;
     elem_t* data = dwt_data->data;
     elem_t* temp = dwt_data->temp;
     size_t stride = dwt_data->stride;
     size_t row_stride = row * stride;
     for (size_t x = 0; x < num_items / 2 - 1; x++)
-        temp[num_items/2 + x + row_stride] = data[2*x+1 + row_stride] + alpha*(data[2*x + row_stride] + data[2*x + 2 + row_stride]);
-    temp[num_items - 1 + row_stride] = data[num_items - 1 + row_stride] + 2*alpha*data[num_items - 2 + row_stride];
+        temp[num_items/2 + x + row_stride] = data[2*x+1 + row_stride] + dwt_alpha*(data[2*x + row_stride] + data[2*x + 2 + row_stride]);
+    temp[num_items - 1 + row_stride] = data[num_items - 1 + row_stride] + 2*dwt_alpha*data[num_items - 2 + row_stride];
 
-    temp[0 + row_stride] = data[0 + row_stride] + beta * (temp[num_items/2 + row_stride] + temp[num_items/2 + 1 + row_stride]);
+    temp[0 + row_stride] = data[0 + row_stride] + dwt_beta * (temp[num_items/2 + row_stride] + temp[num_items/2 + 1 + row_stride]);
     for (size_t x = 1; x < num_items/2; x++)
-        temp[x + row_stride] = data[2*x + row_stride] + beta * (temp[num_items/2 + x + row_stride] + temp[num_items/2 + x - 1 + row_stride]);
+        temp[x + row_stride] = data[2*x + row_stride] + dwt_beta * (temp[num_items/2 + x + row_stride] + temp[num_items/2 + x - 1 + row_stride]);
 
     for (size_t x = 0; x < num_items/2 - 1; x++)
-        temp[num_items/2 + x + row_stride] += gamma*(temp[x + row_stride] + temp[x+1 + row_stride]);
-    temp[num_items - 1 + row_stride] += gamma*(temp[num_items/2 - 1 + row_stride] + temp[num_items/2 - 2 + row_stride]);
+        temp[num_items/2 + x + row_stride] += dwt_gamma*(temp[x + row_stride] + temp[x+1 + row_stride]);
+    temp[num_items - 1 + row_stride] += dwt_gamma*(temp[num_items/2 - 1 + row_stride] + temp[num_items/2 - 2 + row_stride]);
 
-    temp[0 + row_stride] += delta*(temp[num_items/2 + row_stride] + temp[num_items/2 + 1 + row_stride]);
+    temp[0 + row_stride] += dwt_delta*(temp[num_items/2 + row_stride] + temp[num_items/2 + 1 + row_stride]);
     for (size_t x = 1; x < num_items/2; x++)
-        temp[x + row_stride] += delta*(temp[num_items/2 + x + row_stride] + temp[num_items/2 + x - 1 + row_stride]);
+        temp[x + row_stride] += dwt_delta*(temp[num_items/2 + x + row_stride] + temp[num_items/2 + x - 1 + row_stride]);
 
     for (size_t x = 0; x < num_items/2; x++) {
-        temp[x + row_stride] *= xi;
-        temp[num_items/2 + x + row_stride] /= xi;
+        temp[x + row_stride] *= dwt_xi;
+        temp[num_items/2 + x + row_stride] /= dwt_xi;
     }
 }
 
 void idwt_row(DWTData* dwt_data, size_t row, size_t num_items) {
-    const elem_t alpha = -1.586134342;
-    const elem_t beta = -0.05298011854;
-    const elem_t gamma = 0.8829110762;
-    const elem_t delta = 0.44355068522;
-    const elem_t xi = 1.149604398;
     size_t stride = dwt_data->stride;
     size_t row_stride = row * stride;
     elem_t* data = dwt_data->data;
     elem_t* temp = dwt_data->temp;
 
     for (size_t x = 0; x < num_items/2; x++) {
-        temp[x + row_stride] /= xi;
-        temp[num_items/2 + x + row_stride] *= xi;
+        temp[x + row_stride] /= dwt_xi;
+        temp[num_items/2 + x + row_stride] *= dwt_xi;
     }
 
     for (size_t x = 1; x < num_items/2; x++)
-        temp[x + row_stride] -= delta*(temp[num_items/2 + x + row_stride] + temp[num_items/2 + x - 1 + row_stride]);
-    temp[0 + row_stride] -= delta*(temp[num_items/2 + row_stride] + temp[num_items/2 + 1 + row_stride]);
+        temp[x + row_stride] -= dwt_delta*(temp[num_items/2 + x + row_stride] + temp[num_items/2 + x - 1 + row_stride]);
+    temp[0 + row_stride] -= dwt_delta*(temp[num_items/2 + row_stride] + temp[num_items/2 + 1 + row_stride]);
 
-    temp[num_items - 1 + row_stride] -= gamma*(temp[num_items/2 - 1 + row_stride] + temp[num_items/2 - 2 + row_stride]);
+    temp[num_items - 1 + row_stride] -= dwt_gamma*(temp[num_items/2 - 1 + row_stride] + temp[num_items/2 - 2 + row_stride]);
     for (size_t x = 0; x < num_items/2 - 1; x++)
-        temp[num_items/2 + x + row_stride] -= gamma*(temp[x + row_stride] + temp[x+1 + row_stride]);
+        temp[num_items/2 + x + row_stride] -= dwt_gamma*(temp[x + row_stride] + temp[x+1 + row_stride]);
 
     for (size_t x = 1; x < num_items/2; x++)
-        data[2*x + row_stride] = temp[x + row_stride] - beta * (temp[num_items/2 + x + row_stride] + temp[num_items/2 + x - 1 + row_stride]);
-    data[0 + row_stride] = temp[0 + row_stride] - beta * (temp[num_items/2 + row_stride] + temp[num_items/2 + 1 + row_stride]);
+        data[2*x + row_stride] = temp[x + row_stride] - dwt_beta * (temp[num_items/2 + x + row_stride] + temp[num_items/2 + x - 1 + row_stride]);
+    data[0 + row_stride] = temp[0 + row_stride] - dwt_beta * (temp[num_items/2 + row_stride] + temp[num_items/2 + 1 + row_stride]);
 
-    data[num_items-1 + row_stride] = temp[num_items - 1 + row_stride] - 2*alpha*data[num_items-2 + row_stride];
+    data[num_items-1 + row_stride] = temp[num_items - 1 + row_stride] - 2*dwt_alpha*data[num_items-2 + row_stride];
     for (size_t x = 0; x < num_items/2 - 1; x++)
-        data[2*x+1 + row_stride] = temp[num_items/2 + x + row_stride] - alpha*(data[2*x + row_stride] + data[2*x + 2 + row_stride]);
+        data[2*x+1 + row_stride] = temp[num_items/2 + x + row_stride] - dwt_alpha*(data[2*x + row_stride] + data[2*x + 2 + row_stride]);
 }
 
 void dwt_col(DWTData* dwt_data, size_t col, size_t num_items) {
-    const elem_t alpha = -1.586134342;
-    const elem_t beta = -0.05298011854;
-    const elem_t gamma = 0.8829110762;
-    const elem_t delta = 0.44355068522;
-    const elem_t xi = 1.149604398;
     elem_t* data = dwt_data->data;
     elem_t* temp = dwt_data->temp;
     size_t stride = dwt_data->stride;
     
     for (size_t y = 0; y < num_items/2 - 1; y++)
-        data[col + (num_items/2 + y) * stride] = temp[col + (2*y+1) * stride] + alpha*(temp[col + (2*y) * stride] + temp[col + (2*y+2) * stride]);
-    data[col + (num_items - 1) * stride] = temp[col + (num_items-1) * stride] + 2*alpha*temp[col + (num_items-2) * stride];
+        data[col + (num_items/2 + y) * stride] = temp[col + (2*y+1) * stride] + dwt_alpha*(temp[col + (2*y) * stride] + temp[col + (2*y+2) * stride]);
+    data[col + (num_items - 1) * stride] = temp[col + (num_items-1) * stride] + 2*dwt_alpha*temp[col + (num_items-2) * stride];
 
-    data[col + (0) * stride] = temp[col + (0) * stride] + beta * (data[col + (num_items/2) * stride] + data[col + (num_items/2+1) * stride]);
+    data[col + (0) * stride] = temp[col + (0) * stride] + dwt_beta * (data[col + (num_items/2) * stride] + data[col + (num_items/2+1) * stride]);
     for (size_t y = 1; y < num_items/2; y++)
-        data[col + (y) * stride] = temp[col + (2*y) * stride] + beta * (data[col + (num_items/2+y) * stride] + data[col + (num_items/2+y-1) * stride]);
+        data[col + (y) * stride] = temp[col + (2*y) * stride] + dwt_beta * (data[col + (num_items/2+y) * stride] + data[col + (num_items/2+y-1) * stride]);
 
     for (size_t y = 0; y < num_items/2 - 1; y++)
-        data[col + (num_items/2 + y) * stride] += gamma*(data[col + (y) * stride] + data[col + (y+1) * stride]);
-    data[col + (num_items - 1) * stride] += gamma*(data[col + (num_items/2 - 1) * stride] + data[col + (num_items/2-2) * stride]);
+        data[col + (num_items/2 + y) * stride] += dwt_gamma*(data[col + (y) * stride] + data[col + (y+1) * stride]);
+    data[col + (num_items - 1) * stride] += dwt_gamma*(data[col + (num_items/2 - 1) * stride] + data[col + (num_items/2-2) * stride]);
 
-    data[col + (0) * stride] += delta*(data[col + (num_items/2) * stride] + data[col + (num_items/2 + 1) * stride]);
+    data[col + (0) * stride] += dwt_delta*(data[col + (num_items/2) * stride] + data[col + (num_items/2 + 1) * stride]);
     for (size_t y = 1; y < num_items/2; y++)
-        data[col + (y) * stride] += delta*(data[col + (num_items/2+y) * stride] + data[col + (num_items/2 + y - 1) * stride]);
+        data[col + (y) * stride] += dwt_delta*(data[col + (num_items/2+y) * stride] + data[col + (num_items/2 + y - 1) * stride]);
 
     for (size_t y = 0; y < num_items/2; y++) {
-        data[col + (y) * stride] *= xi;
-        data[col + (num_items/2+y) * stride] /= xi;
+        data[col + (y) * stride] *= dwt_xi;
+        data[col + (num_items/2+y) * stride] /= dwt_xi;
     }
 }
 
 void idwt_col(DWTData* dwt_data, size_t col, size_t num_items) {
-    const elem_t alpha = -1.586134342;
-    const elem_t beta = -0.05298011854;
-    const elem_t gamma = 0.8829110762;
-    const elem_t delta = 0.44355068522;
-    const elem_t xi = 1.149604398;
     elem_t* data = dwt_data->data;
     elem_t* temp = dwt_data->temp;
     size_t stride = dwt_data->stride;
 
     for (size_t y = 0; y < num_items/2; y++) {
-        data[col + (y) * stride] /= xi;
-        data[col + (num_items/2+y) * stride] *= xi;
+        data[col + (y) * stride] /= dwt_xi;
+        data[col + (num_items/2+y) * stride] *= dwt_xi;
     }
 
     for (size_t y = 1; y < num_items/2; y++)
-        data[col + (y) * stride] -= delta*(data[col + (num_items/2+y) * stride] + data[col + (num_items/2 + y - 1) * stride]);
-    data[col + (0) * stride] -= delta*(data[col + (num_items/2) * stride] + data[col + (num_items/2 + 1) * stride]);
+        data[col + (y) * stride] -= dwt_delta*(data[col + (num_items/2+y) * stride] + data[col + (num_items/2 + y - 1) * stride]);
+    data[col + (0) * stride] -= dwt_delta*(data[col + (num_items/2) * stride] + data[col + (num_items/2 + 1) * stride]);
 
-    data[col + (num_items - 1) * stride] -= gamma*(data[col + (num_items/2 - 1) * stride] + data[col + (num_items/2-2) * stride]);
+    data[col + (num_items - 1) * stride] -= dwt_gamma*(data[col + (num_items/2 - 1) * stride] + data[col + (num_items/2-2) * stride]);
     for (size_t y = 0; y < num_items/2 - 1; y++)
-        data[col + (num_items/2 + y) * stride] -= gamma*(data[col + (y) * stride] + data[col + (y+1) * stride]);
+        data[col + (num_items/2 + y) * stride] -= dwt_gamma*(data[col + (y) * stride] + data[col + (y+1) * stride]);
 
     for (size_t y = 1; y < num_items/2; y++)
-        temp[col + (2*y) * stride] = data[col + (y) * stride] - beta * (data[col + (num_items/2+y) * stride] + data[col + (num_items/2+y-1) * stride]);
-    temp[col + (0) * stride] = data[col + (0) * stride] - beta * (data[col + (num_items/2) * stride] + data[col + (num_items/2+1) * stride]);
+        temp[col + (2*y) * stride] = data[col + (y) * stride] - dwt_beta * (data[col + (num_items/2+y) * stride] + data[col + (num_items/2+y-1) * stride]);
+    temp[col + (0) * stride] = data[col + (0) * stride] - dwt_beta * (data[col + (num_items/2) * stride] + data[col + (num_items/2+1) * stride]);
 
-    temp[col + (num_items-1) * stride] = data[col + (num_items - 1) * stride] - 2*alpha*temp[col + (num_items-2) * stride];
+    temp[col + (num_items-1) * stride] = data[col + (num_items - 1) * stride] - 2*dwt_alpha*temp[col + (num_items-2) * stride];
     for (size_t y = 0; y < num_items/2 - 1; y++)
-        temp[col + (2*y+1) * stride] = data[col + (num_items/2 + y) * stride] - alpha*(temp[col + (2*y) * stride] + temp[col + (2*y+2) * stride]);
+        temp[col + (2*y+1) * stride] = data[col + (num_items/2 + y) * stride] - dwt_alpha*(temp[col + (2*y) * stride] + temp[col + (2*y+2) * stride]);
+}
+
+void idwt_col8(DWTData* dwt_data, size_t col, size_t num_items) {
+    elem_t* data = dwt_data->data;
+    elem_t* temp = dwt_data->temp;
+    size_t stride = dwt_data->stride;
+
+    for (size_t y = 0; y < num_items/2; y++) {
+        elem_t* lo = data + col + y * stride;
+        elem_t* hi = data + col + (num_items/2 + y) * stride;
+        for (size_t c = 0; c < 8; c++) {
+            lo[c] /= dwt_xi;
+            hi[c] *= dwt_xi;
+        }
+    }
+
+    for (size_t y = 1; y < num_items/2; y++) {
+        elem_t* lo = data + col + y * stride;
+        elem_t* hi = data + col + (num_items/2 + y) * stride;
+        elem_t* hi_prev = data + col + (num_items/2 + y - 1) * stride;
+        for (size_t c = 0; c < 8; c++)
+            lo[c] -= dwt_delta * (hi[c] + hi_prev[c]);
+    }
+    {
+        elem_t* lo = data + col;
+        elem_t* hi = data + col + (num_items/2) * stride;
+        elem_t* hi1 = data + col + (num_items/2 + 1) * stride;
+        for (size_t c = 0; c < 8; c++)
+            lo[c] -= dwt_delta * (hi[c] + hi1[c]);
+    }
+
+    {
+        elem_t* last = data + col + (num_items - 1) * stride;
+        elem_t* hi1  = data + col + (num_items/2 - 1) * stride;
+        elem_t* hi2  = data + col + (num_items/2 - 2) * stride;
+        for (size_t c = 0; c < 8; c++)
+            last[c] -= dwt_gamma * (hi1[c] + hi2[c]);
+    }
+    for (size_t y = 0; y < num_items/2 - 1; y++) {
+        elem_t* hi = data + col + (num_items/2 + y) * stride;
+        elem_t* lo = data + col + y * stride;
+        elem_t* lo1 = data + col + (y + 1) * stride;
+        for (size_t c = 0; c < 8; c++)
+            hi[c] -= dwt_gamma * (lo[c] + lo1[c]);
+    }
+
+    for (size_t y = 1; y < num_items/2; y++) {
+        elem_t* t  = temp + col + (2*y) * stride;
+        elem_t* lo = data + col + y * stride;
+        elem_t* hi = data + col + (num_items/2 + y) * stride;
+        elem_t* hi_prev = data + col + (num_items/2 + y - 1) * stride;
+        for (size_t c = 0; c < 8; c++)
+            t[c] = lo[c] - dwt_beta * (hi[c] + hi_prev[c]);
+    }
+    {
+        elem_t* t  = temp + col;
+        elem_t* lo = data + col;
+        elem_t* hi = data + col + (num_items/2) * stride;
+        elem_t* hi1 = data + col + (num_items/2 + 1) * stride;
+        for (size_t c = 0; c < 8; c++)
+            t[c] = lo[c] - dwt_beta * (hi[c] + hi1[c]);
+    }
+
+    {
+        elem_t* t    = temp + col + (num_items - 1) * stride;
+        elem_t* d    = data + col + (num_items - 1) * stride;
+        elem_t* t_n2 = temp + col + (num_items - 2) * stride;
+        for (size_t c = 0; c < 8; c++)
+            t[c] = d[c] - 2*dwt_alpha * t_n2[c];
+    }
+    for (size_t y = 0; y < num_items/2 - 1; y++) {
+        elem_t* t    = temp + col + (2*y + 1) * stride;
+        elem_t* d    = data + col + (num_items/2 + y) * stride;
+        elem_t* t_lo = temp + col + (2*y) * stride;
+        elem_t* t_hi = temp + col + (2*y + 2) * stride;
+        for (size_t c = 0; c < 8; c++)
+            t[c] = d[c] - dwt_alpha * (t_lo[c] + t_hi[c]);
+    }
 }
 
 void dwt2_(DWTData* dwt_data, size_t size_x, size_t size_y) {
@@ -217,7 +281,10 @@ void dwt2_(DWTData* dwt_data, size_t size_x, size_t size_y) {
 
 void idwt2_(DWTData* dwt_data, size_t size_x, size_t size_y) {
     assert(size_x >= 4 && size_y >= 4);
-    for (size_t x = 0; x < size_x; x++)
+    size_t x = 0;
+    for (; x + 8 <= size_x; x += 8)
+        idwt_col8(dwt_data, x, size_y);
+    for (; x < size_x; x++)
         idwt_col(dwt_data, x, size_y);
     for (size_t y = 0; y < size_y; y++)
         idwt_row(dwt_data, y, size_x);
