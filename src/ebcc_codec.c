@@ -375,11 +375,11 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
 #ifdef ENABLE_PERF
     prctl(PR_TASK_PERF_EVENTS_ENABLE);
 #endif
-    int pure_j2k_required = FALSE, pure_j2k_done = FALSE, pure_j2k_disabled = FALSE, pure_j2k_consistency_disabled = FALSE, mean_error_adjustment_disabled = FALSE;
-    size_t compressed_size = 0, jp2_buffer_length = 0;
+    int pure_base_codec_required = FALSE, pure_base_codec_done = FALSE, pure_base_codec_disabled = FALSE, pure_base_codec_consistency_disabled = FALSE, mean_error_adjustment_disabled = FALSE;
+    size_t compressed_size = 0, base_codec_buffer_length = 0;
     uint8_t *compressed_coefficients = NULL;
     uint8_t *coeffs_buf = NULL;
-    uint8_t *jp2_buffer = NULL; 
+    uint8_t *base_codec_buffer = NULL; 
     float residual_maxval = 0., residual_minval = 0., error_target = -1, current_cr = -1;
     size_t coeffs_size = 0, coeffs_size_orig = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
     double trunc_hi, trunc_lo, best_feasible_trunc;
@@ -391,17 +391,17 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     log_set_level_from_env();
     
     const char *env_base_error_quantile = getenv("EBCC_INIT_BASE_ERROR_QUANTILE");
-    const char *env_disable_pure_jp2_fallback = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK");
-    const char *env_disable_pure_jp2_consistency = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK_CONSISTENCY");
+    const char *env_disable_pure_base_codec_fallback = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK");
+    const char *env_disable_pure_base_codec_consistency = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK_CONSISTENCY");
     const char *env_disable_mean_adjustment = getenv("EBCC_DISABLE_MEAN_ADJUSTMENT");
     if (env_base_error_quantile) {
         base_error_quantile = strtod(env_base_error_quantile, NULL);
     }
-    if (env_disable_pure_jp2_fallback) {
-        pure_j2k_disabled = TRUE;
+    if (env_disable_pure_base_codec_fallback) {
+        pure_base_codec_disabled = TRUE;
     }
-    if (env_disable_pure_jp2_consistency) {
-        pure_j2k_consistency_disabled = TRUE;
+    if (env_disable_pure_base_codec_consistency) {
+        pure_base_codec_consistency_disabled = TRUE;
     }
     if (env_disable_mean_adjustment) {
         mean_error_adjustment_disabled = TRUE;
@@ -410,7 +410,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
 
     print_config(config);
     log_info("1 - base_quantile_target: %.1e", 1-base_quantile_target);
-    log_info("Disable pure base compression fallback: %s", pure_j2k_disabled ? "TRUE" : "FALSE");
+    log_info("Disable pure base compression fallback: %s", pure_base_codec_disabled ? "TRUE" : "FALSE");
 
 
 
@@ -450,9 +450,9 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
         // encode using jpeg2000
         j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
         if (config->residual_compression_type == NONE) {
-            jp2_buffer = (uint8_t *) malloc(codec_data_buffer.length);
-            memcpy(jp2_buffer, codec_data_buffer.buffer, codec_data_buffer.length);
-            jp2_buffer_length = codec_data_buffer.length;
+            base_codec_buffer = (uint8_t *) malloc(codec_data_buffer.length);
+            memcpy(base_codec_buffer, codec_data_buffer.buffer, codec_data_buffer.length);
+            base_codec_buffer_length = codec_data_buffer.length;
         }
         codec_data_buffer_reset(&codec_data_buffer);
     }
@@ -493,9 +493,9 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             float cur_max_error = fmaxf(fabsf(residual_minval), fabsf(residual_maxval));
             float best_feasible_error = -1;
             int skip_residual = cur_max_error <= error_target;
-            pure_j2k_done = base_quantile_target == 1.0;
+            pure_base_codec_done = base_quantile_target == 1.0;
 
-            if (pure_j2k_done) log_info("Pure base compression is feasible, compression error: %f, cr: %f", cur_max_error, current_cr);
+            if (pure_base_codec_done) log_info("Pure base compression is feasible, compression error: %f, cr: %f", cur_max_error, current_cr);
             
 
             if (!skip_residual) {
@@ -513,7 +513,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                 if (cur_max_error > error_target) {
                     log_info("Could not reach error target of %f (%f instead), base compression max error: %f. Retry with pure base compression.", error_target, cur_max_error, fmaxf(fabsf(residual_minval), fabsf(residual_maxval)));
                     skip_residual = TRUE;
-                    pure_j2k_required = TRUE;
+                    pure_base_codec_required = TRUE;
                     /*DONE: if this happen, go for full jpeg2000*/
                 } else {
                     best_feasible_error = cur_max_error;
@@ -575,15 +575,15 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
         }
 
         /* Try again with pure j2k compression , to see if adding residual compression has higher compression ratio */
-        jp2_buffer_length = codec_data_buffer.length;
-        size_t jp2_buffer_size_limit = 2 * (compressed_size + jp2_buffer_length);
-        jp2_buffer = (uint8_t *) malloc(jp2_buffer_size_limit);
-        memcpy(jp2_buffer, codec_data_buffer.buffer, jp2_buffer_length);
-        if ((! pure_j2k_done) && (! pure_j2k_disabled) && (config->residual_compression_type == MAX_ERROR ||
+        base_codec_buffer_length = codec_data_buffer.length;
+        size_t base_codec_buffer_size_limit = 2 * (compressed_size + base_codec_buffer_length);
+        base_codec_buffer = (uint8_t *) malloc(base_codec_buffer_size_limit);
+        memcpy(base_codec_buffer, codec_data_buffer.buffer, base_codec_buffer_length);
+        if ((! pure_base_codec_done) && (! pure_base_codec_disabled) && (config->residual_compression_type == MAX_ERROR ||
             config->residual_compression_type == RELATIVE_ERROR)) {
             assert(error_target > 0);
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
-            if (!pure_j2k_consistency_disabled) {
+            if (!pure_base_codec_consistency_disabled) {
                 codec_data_buffer_reset(&codec_data_buffer);
                 j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
                 codec_data_buffer_reset(&codec_data_buffer);
@@ -593,21 +593,21 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
             error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
 
-            if ((codec_data_buffer.length < compressed_size + jp2_buffer_length) || pure_j2k_required) {
+            if ((codec_data_buffer.length < compressed_size + base_codec_buffer_length) || pure_base_codec_required) {
                 /* Pure JP2 is better than JP2 + SPWV */
-                if (codec_data_buffer.length < compressed_size + jp2_buffer_length)
-                    log_info("Pure base compression (%lu) is better than base (%lu) + residual (%lu) compression (sum: %lu)", codec_data_buffer.length, jp2_buffer_length, compressed_size, compressed_size + jp2_buffer_length);
+                if (codec_data_buffer.length < compressed_size + base_codec_buffer_length)
+                    log_info("Pure base compression (%lu) is better than base (%lu) + residual (%lu) compression (sum: %lu)", codec_data_buffer.length, base_codec_buffer_length, compressed_size, compressed_size + base_codec_buffer_length);
                 
                 cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
 
                 compressed_size = 0;
                 coeffs_size = 0;
-                if (codec_data_buffer.length > jp2_buffer_size_limit) { /* This can happen when pure_j2k_required enabled */
-                    free(jp2_buffer);
-                    jp2_buffer = (uint8_t *) malloc(codec_data_buffer.length);
+                if (codec_data_buffer.length > base_codec_buffer_size_limit) { /* This can happen when pure_base_codec_required enabled */
+                    free(base_codec_buffer);
+                    base_codec_buffer = (uint8_t *) malloc(codec_data_buffer.length);
                 }
-                jp2_buffer_length = codec_data_buffer.length;
-                memcpy(jp2_buffer, codec_data_buffer.buffer, jp2_buffer_length);
+                base_codec_buffer_length = codec_data_buffer.length;
+                memcpy(base_codec_buffer, codec_data_buffer.buffer, base_codec_buffer_length);
             }
         }
         free(coeffs_buf);
@@ -625,7 +625,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
         log_info("Adjusting minval and maxval to %f, %f", minval, maxval);
     }
 
-    size_t codec_size = (const_field) ? sizeof(size_t) : jp2_buffer_length; /*Only output array length if having a constant field*/
+    size_t codec_size = (const_field) ? sizeof(size_t) : base_codec_buffer_length; /*Only output array length if having a constant field*/
 
     size_t out_size =
             2 * sizeof(float) /* minval and maxval */ +
@@ -657,12 +657,12 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     if (const_field) {
         memcpy(iter, &tot_size, sizeof(size_t));
     } else {
-        memcpy(iter, jp2_buffer, jp2_buffer_length);
+        memcpy(iter, base_codec_buffer, base_codec_buffer_length);
     }
     assert(iter - *out_buffer == out_size - codec_size);
 
     if (compressed_coefficients) free(compressed_coefficients);
-    if (jp2_buffer) free(jp2_buffer);
+    if (base_codec_buffer) free(base_codec_buffer);
 
     codec_data_buffer_destroy(&codec_data_buffer);
 
