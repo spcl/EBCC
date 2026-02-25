@@ -38,12 +38,6 @@
 #define EBCC_STATIC_ASSERT(cond, msg) typedef char EBCC_STATIC_ASSERT_CAT(ebcc_static_assert_, __LINE__)[(cond) ? 1 : -1]
 #endif
 
-#if defined(__GNUC__) || defined(__clang__)
-#define EBCC_PUBLIC __attribute__((visibility("default")))
-#else
-#define EBCC_PUBLIC
-#endif
-
 typedef struct {
     uint8_t *buffer;
     size_t size;        // size of the buffer (maximum allowed storage)
@@ -793,7 +787,7 @@ static int legacy_read_bytes(const uint8_t **iter, const uint8_t *end, void *dst
     return TRUE;
 }
 
-EBCC_PUBLIC size_t ebcc_decode_legacy(uint8_t *data, size_t data_size, float **out_buffer) {
+size_t ebcc_decode_legacy(uint8_t *data, size_t data_size, float **out_buffer) {
     codec_data_buffer_t codec_data_buffer;
     size_t tot_size = 0;
     const uint8_t *iter = data;
