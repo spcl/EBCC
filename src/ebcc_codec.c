@@ -26,6 +26,23 @@
 #define FALSE 0
 
 #define WAVELET_LEVELS 3
+#define EBCC_HEADER_VERSION 1
+#define EBCC_HEADER_FLAG_CONST_FIELD 0x01
+#define EBCC_HEADER_MAGIC "EBCC"
+
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#define EBCC_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
+#else
+#define EBCC_STATIC_ASSERT_CAT_(a, b) a##b
+#define EBCC_STATIC_ASSERT_CAT(a, b) EBCC_STATIC_ASSERT_CAT_(a, b)
+#define EBCC_STATIC_ASSERT(cond, msg) typedef char EBCC_STATIC_ASSERT_CAT(ebcc_static_assert_, __LINE__)[(cond) ? 1 : -1]
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define EBCC_PUBLIC __attribute__((visibility("default")))
+#else
+#define EBCC_PUBLIC
+#endif
 
 typedef struct {
     uint8_t *buffer;
@@ -45,7 +62,12 @@ void codec_data_buffer_init(codec_data_buffer_t* data) {
     data->offset = 0;
 }
 
-void codec_data_buffer_reset(codec_data_buffer_t* data) {
+void codec_data_buffer_rewind(codec_data_buffer_t* data) {
+    data->offset = 0;
+}
+
+void codec_data_buffer_clear(codec_data_buffer_t* data) {
+    data->length = 0;
     data->offset = 0;
 }
 
@@ -172,6 +194,43 @@ typedef struct {
     uint16_t c;
     coo_v_t v;
 } coo_t;
+
+
+typedef struct {
+    uint8_t magic[4];
+    uint8_t version;
+    uint8_t flags;
+    uint16_t reserved;
+    uint32_t minval_bits;
+    uint32_t maxval_bits;
+    uint64_t coeffs_size;
+    uint32_t residual_minval_bits;
+    uint32_t residual_maxval_bits;
+    uint64_t compressed_size;
+    uint64_t tail_size;
+} ebcc_header_t;
+
+EBCC_STATIC_ASSERT(sizeof(float) == 4, "EBCC serialization requires 32-bit float");
+EBCC_STATIC_ASSERT(sizeof(ebcc_header_t) == 48, "EBCC header must be fixed-size");
+
+static uint32_t float_to_bits(float value) {
+    uint32_t bits = 0;
+    memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
+static float bits_to_float(uint32_t bits) {
+    float value = 0.0f;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+static void assert_endianness(void) {
+    uint32_t value = 0x01020304u;
+    uint8_t bytes[sizeof(uint32_t)];
+    memcpy(bytes, &value, sizeof(bytes));
+    assert(bytes[0] == 0x04);
+}
 
 const char* residual_t_names[] = {
     "NONE",
@@ -302,9 +361,9 @@ void findMinMaxf(const float *array, size_t size, float *min, float *max) {
 double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr, 
                              codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval, 
                              float *data, size_t tot_size, float error_target) {
-    codec_data_buffer_reset(codec_data_buffer);
+    codec_data_buffer_clear(codec_data_buffer);
     j2k_encode_internal(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer);
-    codec_data_buffer_reset(codec_data_buffer);
+    codec_data_buffer_rewind(codec_data_buffer);
     j2k_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
     return get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
 }
@@ -375,6 +434,9 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
 #ifdef ENABLE_PERF
     prctl(PR_TASK_PERF_EVENTS_ENABLE);
 #endif
+    assert_endianness();
+
+
     int pure_base_codec_required = FALSE, pure_base_codec_done = FALSE, pure_base_codec_disabled = FALSE, pure_base_codec_consistency_disabled = FALSE, mean_error_adjustment_disabled = FALSE;
     size_t compressed_size = 0, base_codec_buffer_length = 0;
     uint8_t *compressed_coefficients = NULL;
@@ -448,13 +510,14 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
         }
 
         // encode using jpeg2000
+        codec_data_buffer_clear(&codec_data_buffer);
         j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
         if (config->residual_compression_type == NONE) {
             base_codec_buffer = (uint8_t *) malloc(codec_data_buffer.length);
             memcpy(base_codec_buffer, codec_data_buffer.buffer, codec_data_buffer.length);
             base_codec_buffer_length = codec_data_buffer.length;
         }
-        codec_data_buffer_reset(&codec_data_buffer);
+        codec_data_buffer_rewind(&codec_data_buffer);
     }
 
     if ((config->residual_compression_type != NONE) && !const_field) {
@@ -584,9 +647,9 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             assert(error_target > 0);
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
             if (!pure_base_codec_consistency_disabled) {
-                codec_data_buffer_reset(&codec_data_buffer);
+                codec_data_buffer_clear(&codec_data_buffer);
                 j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
-                codec_data_buffer_reset(&codec_data_buffer);
+                codec_data_buffer_rewind(&codec_data_buffer);
                 j2k_decode_internal(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
                 current_cr = config->base_cr;
             }
@@ -625,41 +688,44 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
         log_info("Adjusting minval and maxval to %f, %f", minval, maxval);
     }
 
-    size_t codec_size = (const_field) ? sizeof(size_t) : base_codec_buffer_length; /*Only output array length if having a constant field*/
+    size_t codec_size = (const_field) ? sizeof(uint64_t) : base_codec_buffer_length; /*Only output array length if having a constant field*/
 
     size_t out_size =
-            2 * sizeof(float) /* minval and maxval */ +
-            sizeof(size_t) + /* coeffs size */
-            2 * sizeof(float) /* residual_minval, residual_maxval */ +
-            sizeof(size_t) /* compressed_size */ + 
+            sizeof(ebcc_header_t) +
             compressed_size + codec_size;
     *out_buffer = (uint8_t *) malloc(out_size);
 
     log_info("coeffs_size: %lu, compressed_size: %lu, jp2_length: %lu, compression ratio: %f", coeffs_size, compressed_size, codec_size, (double) (tot_size * sizeof(float)) / out_size);
 
     uint8_t *iter = *out_buffer;
-    memcpy(iter, &minval, sizeof(float));
-    iter += sizeof(float);
-    memcpy(iter, &maxval, sizeof(float));
-    iter += sizeof(float);
-    memcpy(iter, &coeffs_size, sizeof(size_t));
-    iter += sizeof(size_t);
-    memcpy(iter, &residual_minval, sizeof(float));
-    iter += sizeof(float);
-    memcpy(iter, &residual_maxval, sizeof(float));
-    iter += sizeof(float);
-    memcpy(iter, &compressed_size, sizeof(size_t));
-    iter += sizeof(size_t);
+    ebcc_header_t header = {0};
+    memcpy(header.magic, EBCC_HEADER_MAGIC, 4);
+    header.version = EBCC_HEADER_VERSION;
+    if (const_field) {
+        header.flags |= EBCC_HEADER_FLAG_CONST_FIELD;
+    }
+    header.minval_bits = float_to_bits(minval);
+    header.maxval_bits = float_to_bits(maxval);
+    header.coeffs_size = (uint64_t) coeffs_size;
+    header.residual_minval_bits = float_to_bits(residual_minval);
+    header.residual_maxval_bits = float_to_bits(residual_maxval);
+    header.compressed_size = (uint64_t) compressed_size;
+    header.tail_size = (uint64_t) codec_size;
+    memcpy(iter, &header, sizeof(header));
+    iter += sizeof(header);
     if (compressed_size > 0) {
         memcpy(iter, compressed_coefficients, compressed_size);
         iter += compressed_size;
     }
     if (const_field) {
-        memcpy(iter, &tot_size, sizeof(size_t));
+        uint64_t tot_size_u64 = (uint64_t) tot_size;
+        memcpy(iter, &tot_size_u64, sizeof(uint64_t));
+        iter += sizeof(uint64_t);
     } else {
         memcpy(iter, base_codec_buffer, base_codec_buffer_length);
+        iter += base_codec_buffer_length;
     }
-    assert(iter - *out_buffer == out_size - codec_size);
+    assert((size_t) (iter - *out_buffer) == out_size);
 
     if (compressed_coefficients) free(compressed_coefficients);
     if (base_codec_buffer) free(base_codec_buffer);
@@ -674,7 +740,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
 
 void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
         codec_data_buffer_t *codec_data_buffer) {
-    codec_data_buffer_reset(codec_data_buffer);
+    codec_data_buffer_rewind(codec_data_buffer);
 
     opj_stream_t *stream = opj_stream_default_create(OPJ_TRUE);
 
@@ -718,38 +784,55 @@ void j2k_decode_internal(float **data, size_t *height, size_t *width, float minv
     opj_image_destroy(image);
 }
 
-size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
+static int legacy_read_bytes(const uint8_t **iter, const uint8_t *end, void *dst, size_t nbytes) {
+    if ((size_t) (end - *iter) < nbytes) {
+        return FALSE;
+    }
+    memcpy(dst, *iter, nbytes);
+    *iter += nbytes;
+    return TRUE;
+}
+
+EBCC_PUBLIC size_t ebcc_decode_legacy(uint8_t *data, size_t data_size, float **out_buffer) {
     codec_data_buffer_t codec_data_buffer;
     size_t tot_size = 0;
-    uint8_t *iter = data;
-    float minval = *((float *) iter);
-    iter += sizeof(float);
-    float maxval = *((float *) iter);
-    iter += sizeof(float);
-    size_t coeffs_size = *((size_t *) iter);
-    iter += sizeof(size_t);
-    float residual_minval = *((float *) iter);
-    iter += sizeof(float);
-    float residual_maxval = *((float *) iter);
-    iter += sizeof(float);
-    size_t compressed_coefficient_size = *((size_t *) iter);
-    iter += sizeof(size_t);
-    uint8_t *coefficient_data = iter;
+    const uint8_t *iter = data;
+    const uint8_t *end = data + data_size;
+
+    float minval = 0.0f, maxval = 0.0f, residual_minval = 0.0f, residual_maxval = 0.0f;
+    size_t coeffs_size = 0, compressed_coefficient_size = 0;
+    if (!legacy_read_bytes(&iter, end, &minval, sizeof(float)) ||
+            !legacy_read_bytes(&iter, end, &maxval, sizeof(float)) ||
+            !legacy_read_bytes(&iter, end, &coeffs_size, sizeof(size_t)) ||
+            !legacy_read_bytes(&iter, end, &residual_minval, sizeof(float)) ||
+            !legacy_read_bytes(&iter, end, &residual_maxval, sizeof(float)) ||
+            !legacy_read_bytes(&iter, end, &compressed_coefficient_size, sizeof(size_t))) {
+        log_fatal("Invalid legacy encoded data: truncated header");
+        return 0;
+    }
+
+    if ((size_t) (end - iter) < compressed_coefficient_size) {
+        log_fatal("Invalid legacy encoded data: truncated residual payload");
+        return 0;
+    }
+    uint8_t *coefficient_data = (uint8_t *) iter;
     iter += compressed_coefficient_size;
 
-    size_t height, width;
+    size_t height = 0, width = 0;
     int const_field = minval == maxval;
     if (const_field) {
-        tot_size = *((size_t *) iter);
-        iter += sizeof(size_t);
+        if (!legacy_read_bytes(&iter, end, &tot_size, sizeof(size_t))) {
+            log_fatal("Invalid legacy encoded data: missing const-field length");
+            return 0;
+        }
         *out_buffer = (float *) malloc(tot_size * sizeof(float));
         for (size_t i = 0; i < tot_size; ++i) {
             (*out_buffer)[i] = minval;
         }
     } else {
-        codec_data_buffer.buffer = iter;
-        codec_data_buffer.size = data_size - (iter - data);
-        codec_data_buffer.length = data_size - (iter - data);
+        codec_data_buffer.buffer = (uint8_t *) iter;
+        codec_data_buffer.size = (size_t) (end - iter);
+        codec_data_buffer.length = (size_t) (end - iter);
         codec_data_buffer.offset = 0;
         j2k_decode_internal(out_buffer, &height, &width, minval, maxval, &codec_data_buffer);
         tot_size = height * width;
@@ -758,6 +841,110 @@ size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
     log_info("Compression Ratio: %f", (double) (tot_size * sizeof(float)) / data_size);
 
     if (compressed_coefficient_size > 0 && coeffs_size > 0) {
+        if (const_field) {
+            log_fatal("Invalid legacy encoded data: residual data cannot be applied to const field");
+            return 0;
+        }
+        uint8_t *coeffs = (uint8_t *) calloc(coeffs_size, sizeof(uint8_t));
+        float *residual = (float *) calloc(tot_size, sizeof(float));
+        ZSTD_decompress(coeffs, coeffs_size * sizeof(uint8_t), coefficient_data, compressed_coefficient_size);
+        spiht_decode(coeffs, coeffs_size, residual, height, width, coeffs_size * 8);
+
+        for (size_t i = 0; i < tot_size; ++i) {
+            (*out_buffer)[i] += residual[i] * (residual_maxval - residual_minval) + residual_minval;
+        }
+
+        free(coeffs);
+        free(residual);
+    }
+
+    return tot_size;
+}
+
+size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
+    assert_endianness();
+
+    codec_data_buffer_t codec_data_buffer;
+    size_t tot_size = 0;
+    uint8_t *iter = data;
+
+    if (data_size < sizeof(ebcc_header_t) || memcmp(data, EBCC_HEADER_MAGIC, 4) != 0) {
+        return ebcc_decode_legacy(data, data_size, out_buffer);
+    }
+
+    ebcc_header_t header;
+    memcpy(&header, iter, sizeof(header));
+    iter += sizeof(header);
+
+    if (header.version != EBCC_HEADER_VERSION) {
+        log_fatal("Unsupported EBCC header version: %u", header.version);
+        return 0;
+    }
+
+    if (header.coeffs_size > SIZE_MAX || header.compressed_size > SIZE_MAX || header.tail_size > SIZE_MAX) {
+        log_fatal("Invalid encoded data: header field exceeds local SIZE_MAX");
+        return 0;
+    }
+
+    float minval = bits_to_float(header.minval_bits);
+    float maxval = bits_to_float(header.maxval_bits);
+    float residual_minval = bits_to_float(header.residual_minval_bits);
+    float residual_maxval = bits_to_float(header.residual_maxval_bits);
+    size_t coeffs_size = (size_t) header.coeffs_size;
+    size_t compressed_coefficient_size = (size_t) header.compressed_size;
+    size_t tail_size = (size_t) header.tail_size;
+
+    size_t header_and_payload_size = sizeof(ebcc_header_t);
+    if (compressed_coefficient_size > data_size - header_and_payload_size) {
+        log_fatal("Invalid encoded data: truncated payload");
+        return 0;
+    }
+    header_and_payload_size += compressed_coefficient_size;
+    if (tail_size > data_size - header_and_payload_size) {
+        log_fatal("Invalid encoded data: truncated payload");
+        return 0;
+    }
+    header_and_payload_size += tail_size;
+
+    uint8_t *coefficient_data = iter;
+    iter += compressed_coefficient_size;
+
+    size_t height = 0, width = 0;
+    int const_field = (header.flags & EBCC_HEADER_FLAG_CONST_FIELD) != 0;
+    if (const_field) {
+        if (tail_size != sizeof(uint64_t)) {
+            log_fatal("Invalid encoded data: const-field payload must contain uint64_t length");
+            return 0;
+        }
+        uint64_t tot_size_u64 = 0;
+        memcpy(&tot_size_u64, iter, sizeof(uint64_t));
+        if (tot_size_u64 > SIZE_MAX) {
+            log_fatal("Invalid encoded data: const-field size exceeds local SIZE_MAX");
+            return 0;
+        }
+        tot_size = (size_t) tot_size_u64;
+        iter += sizeof(uint64_t);
+        *out_buffer = (float *) malloc(tot_size * sizeof(float));
+        for (size_t i = 0; i < tot_size; ++i) {
+            (*out_buffer)[i] = minval;
+        }
+    } else {
+        codec_data_buffer.buffer = iter;
+        codec_data_buffer.size = tail_size;
+        codec_data_buffer.length = tail_size;
+        codec_data_buffer.offset = 0;
+        j2k_decode_internal(out_buffer, &height, &width, minval, maxval, &codec_data_buffer);
+        tot_size = height * width;
+        iter += tail_size;
+    }
+
+    log_info("Compression Ratio: %f", (double) (tot_size * sizeof(float)) / data_size);
+
+    if (compressed_coefficient_size > 0 && coeffs_size > 0) {
+        if (const_field) {
+            log_fatal("Invalid encoded data: residual data cannot be applied to const field");
+            return 0;
+        }
         uint8_t *coeffs = (uint8_t *) calloc(coeffs_size, sizeof(uint8_t));
         float *residual = (float *) calloc(tot_size, sizeof(float));
         ZSTD_decompress(coeffs, coeffs_size * sizeof(uint8_t), coefficient_data, compressed_coefficient_size);
@@ -771,6 +958,11 @@ size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
 
         free(coeffs);
         free(residual);
+    }
+
+    if ((size_t) (iter - data) != header_and_payload_size) {
+        log_fatal("Invalid encoded data: payload size mismatch");
+        return 0;
     }
 
     return tot_size;
