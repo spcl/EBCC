@@ -29,6 +29,10 @@ class CMakeBuild(build_ext):
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={lib_output_dir_str}",
             f"-DCMAKE_BUILD_TYPE={cfg}",  # not used on MSVC, but no harm
         ]
+
+        # Always build with JXL enabled.
+        enable_jxl = True
+        cmake_args.append("-DENABLE_JXL=ON")
         build_args = []
         # Adding CMake arguments set as environment variable
         # (needed e.g. to build for ARM OSx on conda-forge)
@@ -76,14 +80,36 @@ class CMakeBuild(build_ext):
         src_dir = Path(ext.sourcedir) / "src"
         openjpeg_dir = src_dir / "openjpeg"
         zstd_dir = src_dir / "zstd"
-        
-        if not (openjpeg_dir / "CMakeLists.txt").exists() or not (zstd_dir / "CMakeLists.txt").exists():
+        jxl_dir = src_dir / "jxl"
+
+        need_submodule_init = (
+            not (openjpeg_dir / "CMakeLists.txt").exists()
+            or not (zstd_dir / "CMakeLists.txt").exists()
+        )
+        if enable_jxl and not (jxl_dir / "CMakeLists.txt").exists():
+            need_submodule_init = True
+
+        def _dir_has_entries(path: Path) -> bool:
+            return path.exists() and any(path.iterdir())
+
+        if need_submodule_init:
             print("Initializing git submodules...")
             subprocess.run(
                 ["git", "submodule", "update", "--init", "--recursive"],
                 cwd=ext.sourcedir,
                 check=True
             )
+        elif enable_jxl:
+            # Ensure jxl's own nested submodules (highway, brotli, etc.) are initialized
+            jxl_highway = jxl_dir / "third_party" / "highway"
+            jxl_brotli = jxl_dir / "third_party" / "brotli"
+            if not _dir_has_entries(jxl_highway) or not _dir_has_entries(jxl_brotli):
+                print("Initializing jxl nested submodules...")
+                subprocess.run(
+                    ["git", "submodule", "update", "--init", "--recursive"],
+                    cwd=ext.sourcedir,
+                    check=True
+                )
 
         # Run CMake configure
         subprocess.run(
@@ -100,20 +126,23 @@ class CMakeBuild(build_ext):
         src_lib_dir = Path(ext.sourcedir) / "ebcc"
         src_lib_dir.mkdir(parents=True, exist_ok=True)
         
-        # Run CMake install to copy the library to the right location
-        
         # Find and copy the built library to where setuptools expects it
         lib_name = "libh5z_ebcc.so"
+        extra_plugin_name = "libh5z_ebcc_jxl.so"
         if sys.platform == "win32":
             lib_name = "h5z_ebcc.dll"
+            extra_plugin_name = "h5z_ebcc_jxl.dll"
         elif sys.platform == "darwin":
             lib_name = "libh5z_ebcc.dylib"
+            extra_plugin_name = "libh5z_ebcc_jxl.dylib"
 
         # Look for the library produced by CMake
-        candidates = [
-            build_temp / "lib" / lib_name,
-            build_temp / "lib" / ext_path.name,
+        search_roots = [
+            build_temp / "lib",
+            build_temp / "openjpeg" / "bin",
+            build_temp,
         ]
+        candidates = [root / lib_name for root in search_roots] + [build_temp / "lib" / ext_path.name]
         built_lib = next((p for p in candidates if p.exists()), None)
 
         print(f"Built library candidates: {[str(p) for p in candidates]}")
@@ -121,10 +150,21 @@ class CMakeBuild(build_ext):
         if built_lib:
             import shutil
             # Copy to where setuptools expects the built extension
-            if not ext_path.exists():
-                ext_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(built_lib, ext_path)
-                print(f"Copied {built_lib.name} to {ext_path}")
+            ext_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(built_lib, ext_path)
+            print(f"Copied {built_lib.name} to {ext_path}")
+
+            # Always copy both HDF5 plugin binaries into ebcc/
+            plugin_names = (lib_name, extra_plugin_name)
+            for plugin_name in plugin_names:
+                plugin_candidates = [root / plugin_name for root in search_roots]
+                plugin_path = next((p for p in plugin_candidates if p.exists()), None)
+                if plugin_path is None:
+                    print(f"Warning: Could not find plugin binary {plugin_name}")
+                    continue
+                dst = src_lib_dir / plugin_path.name
+                shutil.copy2(plugin_path, dst)
+                print(f"Copied {plugin_path.name} to {dst}")
         else:
             print(f"Warning: Could not find built library {lib_name}")
             print(f"Searched in: {build_temp / 'lib'}, {build_temp}")

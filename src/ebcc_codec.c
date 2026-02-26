@@ -12,6 +12,10 @@
 #include "openjpeg.h"
 #include "zstd.h"
 #include <assert.h>
+#ifdef ENABLE_JXL
+#include <jxl/encode.h>
+#include <jxl/decode.h>
+#endif
 #ifdef __linux__
 #include <malloc.h>
 #else
@@ -26,9 +30,13 @@
 #define FALSE 0
 
 #define WAVELET_LEVELS 3
-#define EBCC_HEADER_VERSION 1
+#define EBCC_HEADER_VERSION 2
 #define EBCC_HEADER_FLAG_CONST_FIELD 0x01
 #define EBCC_HEADER_MAGIC "EBCC"
+#define J2K_PARAM_MIN 1.0f
+#define J2K_PARAM_MAX 1000.0f
+#define JXL_PARAM_MIN 0.0f
+#define JXL_PARAM_MAX 25.0f
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 #define EBCC_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
@@ -45,8 +53,27 @@ typedef struct {
     size_t offset;
 } codec_data_buffer_t;
 
-void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
-        codec_data_buffer_t *codec_data_buffer);
+typedef struct {
+    size_t (*encode)(void *data, size_t *image_dims, size_t *tile_dims, float param, codec_data_buffer_t *out);
+    void (*decode)(float **data, size_t *height, size_t *width, float minval, float maxval, codec_data_buffer_t *stream);
+    float (*error_bound_search)(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float param,
+                                codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval,
+                                float *data, size_t tot_size, float error_target, double base_quantile_target);
+    const char *name;
+    uint8_t id;
+    const char *param_name;
+    float param_min;
+    float param_max;
+} base_codec_backend_t;
+
+static size_t j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_param,
+                                  codec_data_buffer_t *codec_data_buffer);
+static void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
+                                codec_data_buffer_t *codec_data_buffer);
+static size_t jxl_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_param,
+                                  codec_data_buffer_t *codec_data_buffer);
+static void jxl_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
+                                codec_data_buffer_t *codec_data_buffer);
 
 void codec_data_buffer_init(codec_data_buffer_t* data) {
     const size_t initial_buffer_size = 1024;
@@ -75,7 +102,7 @@ void codec_data_buffer_dump(codec_data_buffer_t* data, const char *file_name) {
     fclose(file);
 }
 
-OPJ_SIZE_T write_to_buffer_stream(void *input_buffer, OPJ_SIZE_T len, codec_data_buffer_t *stream_data) {
+static size_t write_to_buffer_stream(void *input_buffer, size_t len, codec_data_buffer_t *stream_data) {
     size_t new_size = stream_data->size;
     while (stream_data->length + len > new_size) {
         new_size *= 2;
@@ -93,9 +120,9 @@ OPJ_SIZE_T write_to_buffer_stream(void *input_buffer, OPJ_SIZE_T len, codec_data
     return len;
 }
 
-OPJ_SIZE_T read_from_buffer_stream(void *output_buffer, OPJ_SIZE_T len, codec_data_buffer_t *stream_data) {
+static size_t read_from_buffer_stream(void *output_buffer, size_t len, codec_data_buffer_t *stream_data) {
     if (stream_data->offset >= stream_data->length) {
-        return -1;
+        return (size_t) -1;
     }
 
     size_t n_bytes_to_read = MIN(len, stream_data->length - stream_data->offset);
@@ -105,7 +132,7 @@ OPJ_SIZE_T read_from_buffer_stream(void *output_buffer, OPJ_SIZE_T len, codec_da
     return n_bytes_to_read;
 }
 
-void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_cr,
+static size_t j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_param,
         codec_data_buffer_t *codec_data_buffer) {
     size_t n_tiles = image_dims[0] / tile_dims[0];
     size_t tile_size = tile_dims[0] * tile_dims[1];
@@ -116,7 +143,7 @@ void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, floa
     // Set image parameters
     parameters.tcp_numlayers = 1;
     parameters.cp_disto_alloc = 1;
-    parameters.tcp_rates[0] = base_cr / 2;
+    parameters.tcp_rates[0] = base_param / 2;
     parameters.irreversible = 1;
     parameters.cp_tx0 = 0;
     parameters.cp_ty0 = 0;
@@ -180,6 +207,7 @@ void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, floa
     opj_stream_destroy(stream);
     opj_image_destroy(image);
     opj_destroy_codec(codec);
+    return codec_data_buffer->length;
 }
 
 typedef uint8_t coo_v_t;
@@ -194,7 +222,8 @@ typedef struct {
     uint8_t magic[4];
     uint8_t version;
     uint8_t flags;
-    uint16_t reserved;
+    uint8_t base_compressor;
+    uint8_t reserved;
     uint32_t minval_bits;
     uint32_t maxval_bits;
     uint64_t coeffs_size;
@@ -232,9 +261,22 @@ const char* residual_t_names[] = {
     "RELATIVE_ERROR"
 };
 
+static const char* base_compressor_names[] = {
+    "j2k",
+    "jxl"
+};
+
+static const char *base_compressor_name(base_compressor_t compressor) {
+    if (compressor < BASE_COMPRESSOR_J2K || compressor > BASE_COMPRESSOR_JXL) {
+        return "unknown";
+    }
+    return base_compressor_names[(int) compressor];
+}
+
 void print_config(codec_config_t *config) {
     log_info("dimensions:\t(%lu, %lu, %lu)", config->dims[0], config->dims[1], config->dims[2]);
-    log_info("base_cr:\t%f", config->base_cr);
+    log_info("base_param:\t%f", config->base_param);
+    log_info("base compressor:\t%s", base_compressor_name(config->base_compressor));
     log_info("residual type:\t%s", residual_t_names[config->residual_compression_type]);
     switch (config->residual_compression_type) {
         case NONE:
@@ -352,8 +394,235 @@ void findMinMaxf(const float *array, size_t size, float *min, float *max) {
     *max = max_val;
 }
 
-double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr, 
-                             codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval, 
+static int get_env_int(const char *name, int default_value, int min_value, int max_value) {
+    const char *raw = getenv(name);
+    if (!raw) {
+        return default_value;
+    }
+    char *endptr = NULL;
+    long parsed = strtol(raw, &endptr, 10);
+    if (*endptr != '\0' || parsed < min_value || parsed > max_value) {
+        log_warn("Ignoring invalid %s=%s; expected integer in [%d, %d]", name, raw, min_value, max_value);
+        return default_value;
+    }
+    return (int) parsed;
+}
+
+static size_t jxl_encode_internal_with_effort(void *data,
+                                              size_t *image_dims,
+                                              float distance,
+                                              codec_data_buffer_t *codec_data_buffer,
+                                              int effort) {
+#ifdef ENABLE_JXL
+    if (distance < JXL_PARAM_MIN) {
+        distance = JXL_PARAM_MIN;
+    } else if (distance > JXL_PARAM_MAX) {
+        distance = JXL_PARAM_MAX;
+    }
+
+    JxlEncoder *encoder = JxlEncoderCreate(NULL);
+    if (!encoder) {
+        log_fatal("Failed to create JXL encoder");
+        return 0;
+    }
+
+    JxlEncoderUseContainer(encoder, JXL_FALSE);
+
+    JxlBasicInfo basic_info;
+    JxlEncoderInitBasicInfo(&basic_info);
+    basic_info.xsize = (uint32_t) image_dims[1];
+    basic_info.ysize = (uint32_t) image_dims[0];
+    basic_info.bits_per_sample = 16;
+    basic_info.exponent_bits_per_sample = 0;
+    basic_info.num_color_channels = 1;
+    basic_info.num_extra_channels = 0;
+    basic_info.uses_original_profile = JXL_TRUE;
+    if (JxlEncoderSetBasicInfo(encoder, &basic_info) != JXL_ENC_SUCCESS) {
+        log_fatal("Failed to configure JXL basic info");
+        JxlEncoderDestroy(encoder);
+        return 0;
+    }
+
+    JxlColorEncoding color_encoding;
+    JxlColorEncodingSetToLinearSRGB(&color_encoding, JXL_TRUE);
+    if (JxlEncoderSetColorEncoding(encoder, &color_encoding) != JXL_ENC_SUCCESS) {
+        log_fatal("Failed to configure JXL color encoding");
+        JxlEncoderDestroy(encoder);
+        return 0;
+    }
+
+    JxlEncoderFrameSettings *frame_settings = JxlEncoderFrameSettingsCreate(encoder, NULL);
+    if (!frame_settings) {
+        log_fatal("Failed to create JXL frame settings");
+        JxlEncoderDestroy(encoder);
+        return 0;
+    }
+    JxlEncoderFrameSettingsSetOption(frame_settings, JXL_ENC_FRAME_SETTING_EFFORT, effort);
+    JxlEncoderSetFrameDistance(frame_settings, distance);
+
+    JxlPixelFormat pixel_format = {1, JXL_TYPE_UINT16, JXL_NATIVE_ENDIAN, 0};
+    size_t image_size_bytes = image_dims[0] * image_dims[1] * sizeof(uint16_t);
+    if (JxlEncoderAddImageFrame(frame_settings, &pixel_format, data, image_size_bytes) != JXL_ENC_SUCCESS) {
+        log_fatal("Failed to add JXL frame");
+        JxlEncoderDestroy(encoder);
+        return 0;
+    }
+    JxlEncoderCloseInput(encoder);
+
+    codec_data_buffer_clear(codec_data_buffer);
+
+    uint8_t jxl_chunk[65536];
+    uint8_t *next_out = jxl_chunk;
+    size_t avail_out = sizeof(jxl_chunk);
+    for (;;) {
+        JxlEncoderStatus status = JxlEncoderProcessOutput(encoder, &next_out, &avail_out);
+        size_t produced = sizeof(jxl_chunk) - avail_out;
+        if (produced > 0) {
+            write_to_buffer_stream(jxl_chunk, produced, codec_data_buffer);
+        }
+        if (status == JXL_ENC_SUCCESS) {
+            break;
+        }
+        if (status != JXL_ENC_NEED_MORE_OUTPUT) {
+            log_fatal("JXL encoder failed while producing output");
+            JxlEncoderDestroy(encoder);
+            return 0;
+        }
+        next_out = jxl_chunk;
+        avail_out = sizeof(jxl_chunk);
+    }
+    JxlEncoderDestroy(encoder);
+    return codec_data_buffer->length;
+#else
+    (void) data;
+    (void) image_dims;
+    (void) distance;
+    (void) codec_data_buffer;
+    (void) effort;
+    log_fatal("JXL support not compiled. Rebuild with -DENABLE_JXL=ON.");
+    return 0;
+#endif
+}
+
+static size_t jxl_encode_internal(void *data,
+                                  size_t *image_dims,
+                                  size_t *tile_dims,
+                                  float base_param,
+                                  codec_data_buffer_t *codec_data_buffer) {
+    (void) tile_dims;
+    int effort = get_env_int("EBCC_JXL_EFFORT", 7, 1, 9);
+    return jxl_encode_internal_with_effort(data, image_dims, base_param, codec_data_buffer, effort);
+}
+
+static void jxl_decode_internal(float **data,
+                                size_t *height,
+                                size_t *width,
+                                float minval,
+                                float maxval,
+                                codec_data_buffer_t *codec_data_buffer) {
+#ifdef ENABLE_JXL
+    codec_data_buffer_rewind(codec_data_buffer);
+
+    JxlDecoder *decoder = JxlDecoderCreate(NULL);
+    if (!decoder) {
+        log_fatal("Failed to create JXL decoder");
+        return;
+    }
+    if (JxlDecoderSubscribeEvents(decoder, JXL_DEC_BASIC_INFO | JXL_DEC_FULL_IMAGE) != JXL_DEC_SUCCESS) {
+        log_fatal("Failed to subscribe JXL decoder events");
+        JxlDecoderDestroy(decoder);
+        return;
+    }
+
+    JxlDecoderSetInput(decoder, codec_data_buffer->buffer, codec_data_buffer->length);
+    JxlDecoderCloseInput(decoder);
+
+    JxlPixelFormat pixel_format = {1, JXL_TYPE_UINT16, JXL_NATIVE_ENDIAN, 0};
+    uint16_t *decoded_u16 = NULL;
+    size_t decoded_u16_size = 0;
+    size_t xsize = 0, ysize = 0;
+
+    for (;;) {
+        JxlDecoderStatus status = JxlDecoderProcessInput(decoder);
+        if (status == JXL_DEC_ERROR) {
+            log_fatal("JXL decoder failed");
+            free(decoded_u16);
+            JxlDecoderDestroy(decoder);
+            return;
+        }
+        if (status == JXL_DEC_NEED_MORE_INPUT) {
+            log_fatal("Truncated JXL payload");
+            free(decoded_u16);
+            JxlDecoderDestroy(decoder);
+            return;
+        }
+        if (status == JXL_DEC_BASIC_INFO) {
+            JxlBasicInfo info;
+            if (JxlDecoderGetBasicInfo(decoder, &info) != JXL_DEC_SUCCESS) {
+                log_fatal("Failed to read JXL basic info");
+                free(decoded_u16);
+                JxlDecoderDestroy(decoder);
+                return;
+            }
+            xsize = info.xsize;
+            ysize = info.ysize;
+            if (width) {
+                *width = xsize;
+            }
+            if (height) {
+                *height = ysize;
+            }
+            if (JxlDecoderImageOutBufferSize(decoder, &pixel_format, &decoded_u16_size) != JXL_DEC_SUCCESS) {
+                log_fatal("Failed to query JXL output buffer size");
+                free(decoded_u16);
+                JxlDecoderDestroy(decoder);
+                return;
+            }
+            decoded_u16 = (uint16_t *) malloc(decoded_u16_size);
+            if (!decoded_u16) {
+                log_fatal("Failed to allocate JXL output buffer");
+                JxlDecoderDestroy(decoder);
+                return;
+            }
+            if (JxlDecoderSetImageOutBuffer(decoder, &pixel_format, decoded_u16, decoded_u16_size) != JXL_DEC_SUCCESS) {
+                log_fatal("Failed to set JXL output buffer");
+                free(decoded_u16);
+                JxlDecoderDestroy(decoder);
+                return;
+            }
+            continue;
+        }
+        if (status == JXL_DEC_FULL_IMAGE) {
+            continue;
+        }
+        if (status == JXL_DEC_SUCCESS) {
+            break;
+        }
+    }
+
+    size_t num_pixels = xsize * ysize;
+    if (!*data) {
+        *data = (float *) malloc(num_pixels * sizeof(float));
+    }
+    for (size_t i = 0; i < num_pixels; ++i) {
+        (*data)[i] = ((float) decoded_u16[i] / (uint16_t)-1) * (maxval - minval) + minval;
+    }
+
+    free(decoded_u16);
+    JxlDecoderDestroy(decoder);
+#else
+    (void) data;
+    (void) height;
+    (void) width;
+    (void) minval;
+    (void) maxval;
+    (void) codec_data_buffer;
+    log_fatal("JXL support not compiled. Rebuild with -DENABLE_JXL=ON.");
+#endif
+}
+
+double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr,
+                             codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval,
                              float *data, size_t tot_size, float error_target) {
     codec_data_buffer_clear(codec_data_buffer);
     j2k_encode_internal(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer);
@@ -415,6 +684,122 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
 
 }
 
+double emulate_jxl_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_distance,
+                             codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval,
+                             float *data, size_t tot_size, float error_target) {
+    (void) tile_dims;
+    int effort = get_env_int("EBCC_JXL_SEARCH_EFFORT", 4, 1, 9);
+    codec_data_buffer_clear(codec_data_buffer);
+    jxl_encode_internal_with_effort(scaled_data, image_dims, current_distance, codec_data_buffer, effort);
+    codec_data_buffer_rewind(codec_data_buffer);
+    jxl_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
+    return get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
+}
+
+float error_bound_jxl_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_distance,
+                             codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval,
+                             float *data, size_t tot_size, float error_target, double base_quantile_target) {
+    float dist_lo = JXL_PARAM_MIN;
+    float dist_hi = JXL_PARAM_MAX;
+    float best_feasible_dist = dist_lo;
+    double eps = 1e-8;
+
+    double quantile_at_lo = emulate_jxl_compression(scaled_data, image_dims, tile_dims, dist_lo,
+                                                    codec_data_buffer, decoded, minval, maxval,
+                                                    data, tot_size, error_target);
+    log_trace("current_distance: %f, 1-error_target_quantile: %.1e, jxl_length: %lu",
+              current_distance, 1 - quantile_at_lo, codec_data_buffer->length);
+    log_trace("dist_lo: %f, 1-error_target_quantile: %.1e, jxl_length: %lu",
+              dist_lo, 1 - quantile_at_lo, codec_data_buffer->length);
+    if (quantile_at_lo < base_quantile_target) {
+        log_warn("JXL distance %.3f does not satisfy the error target quantile; using minimum distance.", dist_lo);
+        return dist_lo;
+    }
+
+    double quantile_at_hi = emulate_jxl_compression(scaled_data, image_dims, tile_dims, dist_hi,
+                                                    codec_data_buffer, decoded, minval, maxval,
+                                                    data, tot_size, error_target);
+    log_trace("dist_hi: %f, 1-error_target_quantile: %.1e, jxl_length: %lu",
+              dist_hi, 1 - quantile_at_hi, codec_data_buffer->length);
+    if (quantile_at_hi >= base_quantile_target) {
+        return dist_hi;
+    }
+
+    while (dist_hi - dist_lo > 1e-3f) {
+        float mid = 0.5f * (dist_hi + dist_lo);
+        double quantile_mid = emulate_jxl_compression(scaled_data, image_dims, tile_dims, mid,
+                                                      codec_data_buffer, decoded, minval, maxval,
+                                                      data, tot_size, error_target);
+        log_trace("current_distance: %f, dist_lo: %f, dist_hi: %f, 1-error_target_quantile: %.1e, jxl_length: %lu",
+                  mid, dist_lo, dist_hi, 1 - quantile_mid, codec_data_buffer->length);
+        if (quantile_mid + eps >= base_quantile_target) {
+            best_feasible_dist = mid;
+            dist_lo = mid;
+        } else {
+            dist_hi = mid;
+        }
+    }
+    {
+        double best_quantile = emulate_jxl_compression(scaled_data, image_dims, tile_dims, best_feasible_dist,
+                                                       codec_data_buffer, decoded, minval, maxval,
+                                                       data, tot_size, error_target);
+        log_trace("best_distance: %f, 1-error_target_quantile: %.1e, jxl_length: %lu",
+                  best_feasible_dist, 1 - best_quantile, codec_data_buffer->length);
+    }
+    return best_feasible_dist;
+}
+
+static const base_codec_backend_t j2k_backend = {
+    .encode = j2k_encode_internal,
+    .decode = j2k_decode_internal,
+    .error_bound_search = error_bound_j2k_compression,
+    .name = "j2k",
+    .id = BASE_COMPRESSOR_J2K,
+    .param_name = "cr",
+    .param_min = J2K_PARAM_MIN,
+    .param_max = J2K_PARAM_MAX,
+};
+
+static const base_codec_backend_t jxl_backend = {
+    .encode = jxl_encode_internal,
+    .decode = jxl_decode_internal,
+    .error_bound_search = error_bound_jxl_compression,
+    .name = "jxl",
+    .id = BASE_COMPRESSOR_JXL,
+    .param_name = "distance",
+    .param_min = JXL_PARAM_MIN,
+    .param_max = JXL_PARAM_MAX,
+};
+
+static const base_codec_backend_t *get_backend_by_id(uint8_t id) {
+    if (id == BASE_COMPRESSOR_J2K) {
+        return &j2k_backend;
+    }
+    if (id == BASE_COMPRESSOR_JXL) {
+        return &jxl_backend;
+    }
+    return NULL;
+}
+
+static const base_codec_backend_t *get_backend_for_encode(codec_config_t *config) {
+#ifndef ENABLE_JXL
+    if (config->base_compressor == BASE_COMPRESSOR_JXL) {
+        log_fatal("JXL support not compiled. Rebuild with -DENABLE_JXL=ON.");
+        return NULL;
+    }
+#endif
+    const base_codec_backend_t *backend = get_backend_by_id((uint8_t) config->base_compressor);
+    if (!backend) {
+        log_fatal("Unknown base compressor: %d", (int) config->base_compressor);
+        return NULL;
+    }
+    if (config->base_param < backend->param_min || config->base_param > backend->param_max) {
+        log_warn("Base %s parameter %f is outside [%f, %f]", backend->param_name, config->base_param,
+                 backend->param_min, backend->param_max);
+    }
+    return backend;
+}
+
 void check_nan_inf(const float *data, const size_t tot_size) {
     for (size_t i = 0; i < tot_size; ++i) {
         if (isnan(data[i]) || isinf(data[i])) {
@@ -436,7 +821,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     uint8_t *compressed_coefficients = NULL;
     uint8_t *coeffs_buf = NULL;
     uint8_t *base_codec_buffer = NULL; 
-    float residual_maxval = 0., residual_minval = 0., error_target = -1, current_cr = -1;
+    float residual_maxval = 0., residual_minval = 0., error_target = -1, current_base_param = -1;
     size_t coeffs_size = 0, coeffs_size_orig = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
     double trunc_hi, trunc_lo, best_feasible_trunc;
     double eps = 1e-8, base_error_quantile=1e-6;
@@ -467,6 +852,12 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     print_config(config);
     log_info("1 - base_quantile_target: %.1e", 1-base_quantile_target);
     log_info("Disable pure base compression fallback: %s", pure_base_codec_disabled ? "TRUE" : "FALSE");
+
+    const base_codec_backend_t *backend = get_backend_for_encode(config);
+    if (!backend) {
+        return 0;
+    }
+    log_info("[ebcc] using backend: %s", backend->name);
 
 
 
@@ -503,9 +894,13 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             scaled_data[i] = ((data[i] - minval) / (maxval - minval)) * (uint16_t)-1;
         }
 
-        // encode using jpeg2000
+        // encode using selected backend
         codec_data_buffer_clear(&codec_data_buffer);
-        j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
+        if (backend->encode(scaled_data, image_dims, tile_dims, config->base_param, &codec_data_buffer) == 0) {
+            free(scaled_data);
+            codec_data_buffer_destroy(&codec_data_buffer);
+            return 0;
+        }
         if (config->residual_compression_type == NONE) {
             base_codec_buffer = (uint8_t *) malloc(codec_data_buffer.length);
             memcpy(base_codec_buffer, codec_data_buffer.buffer, codec_data_buffer.length);
@@ -519,7 +914,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
         float *residual = (float *) malloc(tot_size * sizeof(float));
         float *residual_norm = (float *) malloc(tot_size * sizeof(float));
         float *decoded = (float *) malloc(tot_size * sizeof(float));
-        j2k_decode_internal(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
+        backend->decode(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
 
         cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
 
@@ -535,12 +930,14 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
 
         if (config->residual_compression_type == MAX_ERROR ||
                 config->residual_compression_type == RELATIVE_ERROR) {
-            error_target = config->error, current_cr = config->base_cr;
+            error_target = config->error, current_base_param = config->base_param;
             if (config->residual_compression_type == RELATIVE_ERROR) {
                 error_target *= get_data_range(data, tot_size);
             }
 
-            current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, base_quantile_target);
+            current_base_param = backend->error_bound_search(scaled_data, image_dims, tile_dims, current_base_param,
+                                                             &codec_data_buffer, &decoded, minval, maxval,
+                                                             data, tot_size, error_target, base_quantile_target);
             
             for (size_t i = 0; i < tot_size; ++i) {
                 residual[i] = data[i] - decoded[i];
@@ -552,7 +949,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             int skip_residual = cur_max_error <= error_target;
             pure_base_codec_done = base_quantile_target == 1.0;
 
-            if (pure_base_codec_done) log_info("Pure base compression is feasible, compression error: %f, cr: %f", cur_max_error, current_cr);
+            if (pure_base_codec_done) log_info("Pure base compression is feasible, compression error: %f, %s: %f", cur_max_error, backend->param_name, current_base_param);
             
 
             if (!skip_residual) {
@@ -631,7 +1028,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             compressed_size = ZSTD_compress(compressed_coefficients, compressed_size, coeffs_buf, coeffs_size * sizeof(uint8_t), 22);
         }
 
-        /* Try again with pure j2k compression , to see if adding residual compression has higher compression ratio */
+        /* Try again with pure base compression, to see if adding residual compression has higher compression ratio */
         base_codec_buffer_length = codec_data_buffer.length;
         size_t base_codec_buffer_size_limit = 2 * (compressed_size + base_codec_buffer_length);
         base_codec_buffer = (uint8_t *) malloc(base_codec_buffer_size_limit);
@@ -642,13 +1039,23 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
             if (!pure_base_codec_consistency_disabled) {
                 codec_data_buffer_clear(&codec_data_buffer);
-                j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
+                if (backend->encode(scaled_data, image_dims, tile_dims, config->base_param, &codec_data_buffer) == 0) {
+                    free(coeffs_buf);
+                    free(residual);
+                    free(residual_norm);
+                    free(decoded);
+                    free(scaled_data);
+                    codec_data_buffer_destroy(&codec_data_buffer);
+                    return 0;
+                }
                 codec_data_buffer_rewind(&codec_data_buffer);
-                j2k_decode_internal(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
-                current_cr = config->base_cr;
+                backend->decode(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
+                current_base_param = config->base_param;
             }
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
-            error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
+            backend->error_bound_search(scaled_data, image_dims, tile_dims, current_base_param,
+                                        &codec_data_buffer, &decoded, minval, maxval,
+                                        data, tot_size, error_target, 1.0);
 
             if ((codec_data_buffer.length < compressed_size + base_codec_buffer_length) || pure_base_codec_required) {
                 /* Pure JP2 is better than JP2 + SPWV */
@@ -689,7 +1096,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             compressed_size + codec_size;
     *out_buffer = (uint8_t *) malloc(out_size);
 
-    log_info("coeffs_size: %lu, compressed_size: %lu, jp2_length: %lu, compression ratio: %f", coeffs_size, compressed_size, codec_size, (double) (tot_size * sizeof(float)) / out_size);
+    log_info("coeffs_size: %lu, compressed_size: %lu, base_length: %lu, compression ratio: %f", coeffs_size, compressed_size, codec_size, (double) (tot_size * sizeof(float)) / out_size);
 
     uint8_t *iter = *out_buffer;
     ebcc_header_t header = {0};
@@ -698,6 +1105,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     if (const_field) {
         header.flags |= EBCC_HEADER_FLAG_CONST_FIELD;
     }
+    header.base_compressor = backend->id;
     header.minval_bits = float_to_bits(minval);
     header.maxval_bits = float_to_bits(maxval);
     header.coeffs_size = (uint64_t) coeffs_size;
@@ -732,7 +1140,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     return out_size;
 }
 
-void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
+static void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
         codec_data_buffer_t *codec_data_buffer) {
     codec_data_buffer_rewind(codec_data_buffer);
 
@@ -870,10 +1278,27 @@ size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
     memcpy(&header, iter, sizeof(header));
     iter += sizeof(header);
 
-    if (header.version != EBCC_HEADER_VERSION) {
+    if (header.version != 1 && header.version != EBCC_HEADER_VERSION) {
         log_fatal("Unsupported EBCC header version: %u", header.version);
         return 0;
     }
+
+    uint8_t backend_id = BASE_COMPRESSOR_J2K;
+    if (header.version >= 2) {
+        backend_id = header.base_compressor;
+    }
+#ifndef ENABLE_JXL
+    if (backend_id == BASE_COMPRESSOR_JXL) {
+        log_fatal("Encoded payload uses JXL backend, but JXL support is not compiled in this build.");
+        return 0;
+    }
+#endif
+    const base_codec_backend_t *backend = get_backend_by_id(backend_id);
+    if (!backend) {
+        log_fatal("Unsupported base compressor id: %u", backend_id);
+        return 0;
+    }
+    log_info("[ebcc] decoding with backend: %s", backend->name);
 
     if (header.coeffs_size > SIZE_MAX || header.compressed_size > SIZE_MAX || header.tail_size > SIZE_MAX) {
         log_fatal("Invalid encoded data: header field exceeds local SIZE_MAX");
@@ -927,7 +1352,7 @@ size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
         codec_data_buffer.size = tail_size;
         codec_data_buffer.length = tail_size;
         codec_data_buffer.offset = 0;
-        j2k_decode_internal(out_buffer, &height, &width, minval, maxval, &codec_data_buffer);
+        backend->decode(out_buffer, &height, &width, minval, maxval, &codec_data_buffer);
         tot_size = height * width;
         iter += tail_size;
     }
