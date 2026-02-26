@@ -31,7 +31,7 @@ pip install -e ".[zarr]"          # Zarr support (requires python 3.11+ for zarr
 git clone --recurse-submodules https://github.com/spcl/EBCC.git
 mkdir compression-filter/src/build
 cd compression-filter/src/build
-cmake -DCMAKE_INSTALL_PREFIX=. ..
+cmake -DCMAKE_INSTALL_PREFIX=. -DENABLE_JXL=OFF ..
 make && make install
 # the compiled filter is stored in `src/build/lib/libh5z_ebcc.so`
 ```
@@ -39,7 +39,12 @@ make && make install
 # User guide
 Our compression algorithm is implemented as an HDF5 filter. The filter expects a chunk size equal to a single 2D “frame”, and can scale to any number of dimensions greater or equan than 2.
 
-Its base functionality compresses the data using JPEG2000. The user provides a "base" compression ratio for this functionality.
+Its base functionality compresses the data using a selectable base backend:
+- `j2k` (JPEG2000, filter id `308`) with `base_cr`
+- `jxl` (JPEG XL, filter id `309`) with `base_distance`
+
+The `cd_values` layout remains unchanged for both backends:
+`[height, width, base_param_bits, residual_type, error_bits?]`
 The user can also enable a compression of the residual in order to improve accuracy. The residual is the difference between the original frame and the uncompressed frame. The residual is compressed independently of the base frame, and is summed to the uncompressed base frame when decompressing. We support three modes of operation:
 1. `NONE`: there is no residual
 2. `MAX_ERROR`: the residual is wavelet encoded and sparsified. The sparsification factor is found through an iterative process that tries out several factors and selects the largest one that keeps the max error below the selected threshold
@@ -65,6 +70,8 @@ As an example, with the default filter configuration and tiles of 721x1440 (used
 HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 --filter 308,721,1440,1128792064,3,1008981770 copy temperature.nc compressed.nc
 # or
 HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 --filter $(python filter_wrapper.py --base_cr 30 --height 721 --width 1440 -m 0.5) copy temperature.nc compressed.nc
+# or JPEG XL backend (filter id 309)
+HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 --filter $(python filter_wrapper.py --base_compressor jxl --base_distance 1.0 --height 721 --width 1440 -m 0.5) copy temperature.nc compressed.nc
 ```
 
 As an alternative, the `setfilter` function is also supported. The function allows the user to specify a filter for every variable in a netcdf file. Prepare a file `myfilter` containing the filter specification>
@@ -81,4 +88,6 @@ HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 setfilter,filename=myfilter tempera
 # Extra configurations through environment variables
 - `EBCC_LOG_LEVEL`: valid value int [0, 5], default to 3, 0 - TRACE, 1 - DEBUG, 2 - INFO, 3 - WARN, 4 - ERROR, 5 - FATAL
 - `EBCC_INIT_BASE_ERROR_QUANTILE`: valid value float [0, 1), default to 1e-6, set to 0 to turn off residual compression layer
-- `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK`: when set, turn off pure JP2 fallback (not recommended)
+- `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK`: when set, turn off pure base-codec fallback (not recommended)
+- `EBCC_JXL_EFFORT`: optional JXL effort for final encode (1-9, default 7)
+- `EBCC_JXL_SEARCH_EFFORT`: optional JXL effort during error-bound search (1-9, default 4)

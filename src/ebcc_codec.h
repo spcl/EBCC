@@ -14,9 +14,15 @@ typedef enum {
     RELATIVE_ERROR
 } residual_t;
 
+typedef enum {
+    BASE_COMPRESSOR_J2K = 0,
+    BASE_COMPRESSOR_JXL = 1
+} base_compressor_t;
+
 typedef struct {
     size_t dims[NDIMS];
-    float base_cr;
+    float base_param;
+    base_compressor_t base_compressor;
     residual_t residual_compression_type;
     float residual_cr;
     float error;

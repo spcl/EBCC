@@ -51,8 +51,27 @@ jobs:
         python -m pip install --upgrade pip
         pip install wheel cmake
 
+    - name: Install JXL dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libjxl-dev
+
+    - name: Install JXL dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew update
+        brew install jpeg-xl
+
     - name: Build wheel
+      env:
+        ENABLE_JXL: "ON"
       run: pip wheel . -w dist --no-deps
+
+    - name: Build wheel with JXL disabled
+      env:
+        ENABLE_JXL: "OFF"
+      run: pip wheel . -w dist-nojxl --no-deps
 
     - name: Unpack wheel and find library
       shell: bash
