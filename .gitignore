@@ -17,3 +17,4 @@ ebcc/__pycache__
 data/test.zarr
 .venv
 *.DS_Store
+src/.cache

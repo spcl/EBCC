@@ -222,7 +222,7 @@ def run_cjxl_roundtrip(input_path: Path, decoded_path: Path, distance: float) ->
 
     encoded_path = decoded_path.with_suffix(".jxl")
     subprocess.run(
-        [cjxl_bin, str(input_path), str(encoded_path), "--distance", str(distance), "--quiet", "--effort", "10"],
+        [cjxl_bin, str(input_path), str(encoded_path), "--distance", str(distance), "--quiet", "--effort", "10", "-x", "color_space=Gra_D65_Rel_Lin"], #"--disable_perceptual_optimizations" # cause crash
         check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
