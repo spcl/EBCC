@@ -21,7 +21,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(_LOCAL_MPL_DIR))
 import matplotlib.pyplot as plt
 
 
-DISTANCES = [0.01, 0.1, 0.5, 1.0, 2.0, 4.0]
+DISTANCES = [0, 0.01, 0.1, 0.5, 1.0, 2.0, 4.0]
 BASE_COMPRESSOR_J2K = 0
 BASE_COMPRESSOR_JXL = 1
 RESIDUAL_NONE = 0
@@ -35,6 +35,15 @@ class CodecConfigT(ctypes.Structure):
         ("residual_compression_type", ctypes.c_int),
         ("residual_cr", ctypes.c_float),
         ("error", ctypes.c_float),
+    ]
+
+
+class CodecDataBufferT(ctypes.Structure):
+    _fields_ = [
+        ("buffer", ctypes.POINTER(ctypes.c_ubyte)),
+        ("size", ctypes.c_size_t),
+        ("length", ctypes.c_size_t),
+        ("offset", ctypes.c_size_t),
     ]
 
 
@@ -80,6 +89,24 @@ def load_codec_lib(lib_path: Path) -> ctypes.CDLL:
         ctypes.POINTER(ctypes.POINTER(ctypes.c_float)),
     ]
     lib.free_buffer.argtypes = [ctypes.c_void_p]
+    lib.codec_data_buffer_init.argtypes = [ctypes.POINTER(CodecDataBufferT)]
+    lib.codec_data_buffer_destroy.argtypes = [ctypes.POINTER(CodecDataBufferT)]
+    lib.jxl_encode_internal_with_effort.restype = ctypes.c_size_t
+    lib.jxl_encode_internal_with_effort.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.c_float,
+        ctypes.POINTER(CodecDataBufferT),
+        ctypes.c_int,
+    ]
+    lib.jxl_decode_internal.argtypes = [
+        ctypes.POINTER(ctypes.POINTER(ctypes.c_float)),
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.c_float,
+        ctypes.c_float,
+        ctypes.POINTER(CodecDataBufferT),
+    ]
     return lib
 
 
@@ -114,6 +141,58 @@ def decode(lib: ctypes.CDLL, encoded: bytes) -> np.ndarray:
     decoded = np.ctypeslib.as_array(out_buffer, shape=(decoded_size,)).copy()
     lib.free_buffer(out_buffer)
     return decoded
+
+
+def jxl_internal_roundtrip_u16(
+    lib: ctypes.CDLL,
+    data_u16_2d: np.ndarray,
+    minval: float,
+    maxval: float,
+    distance: float,
+    effort: int = 10,
+) -> tuple[np.ndarray, int]:
+    if data_u16_2d.ndim != 2:
+        raise ValueError(f"Expected 2D uint16 image, got shape {data_u16_2d.shape}")
+    if data_u16_2d.dtype != np.uint16:
+        raise ValueError(f"Expected uint16 image, got dtype {data_u16_2d.dtype}")
+
+    h, w = map(int, data_u16_2d.shape)
+    data_u16_flat = np.ascontiguousarray(data_u16_2d.ravel())
+    image_dims = (ctypes.c_size_t * 2)(h, w)
+
+    codec_data_buffer = CodecDataBufferT()
+    lib.codec_data_buffer_init(ctypes.byref(codec_data_buffer))
+    try:
+        encoded_size = lib.jxl_encode_internal_with_effort(
+            ctypes.cast(data_u16_flat.ctypes.data, ctypes.c_void_p),
+            image_dims,
+            ctypes.c_float(distance),
+            ctypes.byref(codec_data_buffer),
+            int(effort),
+        )
+        if encoded_size == 0:
+            raise RuntimeError(f"jxl_encode_internal_with_effort failed at distance={distance}")
+
+        decoded_ptr = ctypes.POINTER(ctypes.c_float)()
+        out_h = ctypes.c_size_t(0)
+        out_w = ctypes.c_size_t(0)
+        lib.jxl_decode_internal(
+            ctypes.byref(decoded_ptr),
+            ctypes.byref(out_h),
+            ctypes.byref(out_w),
+            ctypes.c_float(minval),
+            ctypes.c_float(maxval),
+            ctypes.byref(codec_data_buffer),
+        )
+        if not bool(decoded_ptr):
+            raise RuntimeError(f"jxl_decode_internal failed at distance={distance}")
+
+        decoded_size = int(out_h.value * out_w.value)
+        decoded = np.ctypeslib.as_array(decoded_ptr, shape=(decoded_size,)).copy()
+        lib.free_buffer(decoded_ptr)
+        return decoded, int(encoded_size)
+    finally:
+        lib.codec_data_buffer_destroy(ctypes.byref(codec_data_buffer))
 
 
 def float_to_uint16_range_scaled(data: np.ndarray) -> tuple[np.ndarray, float, float]:
@@ -338,6 +417,9 @@ def main() -> None:
     top_cjxl_pfm_errors = {}
     top_cjxl_pfm_sizes = {}
     top_cjxl_pfm_cr = {}
+    top_internal_jxl_errors = {}
+    top_internal_jxl_sizes = {}
+    top_internal_jxl_cr = {}
 
     pgm_u16, pgm_min, pgm_max = float_to_uint16_range_scaled(original)
     pfm_norm, pfm_min, pfm_max = normalize_to_unit_interval(original)
@@ -369,9 +451,19 @@ def main() -> None:
             top_cjxl_pfm_sizes[distance] = pfm_encoded_size
             top_cjxl_pfm_cr[distance] = pfm_source_bytes / float(pfm_encoded_size)
 
+            internal_decoded, internal_size = jxl_internal_roundtrip_u16(
+                lib, pgm_u16, pgm_min, pgm_max, distance, effort=10
+            )
+            top_internal_jxl_errors[distance] = np.ascontiguousarray(
+                internal_decoded - original_flat
+            )
+            top_internal_jxl_sizes[distance] = internal_size
+            top_internal_jxl_cr[distance] = original_flat.nbytes / float(internal_size)
+
             print(
                 f"distance={distance:>4g}  cjxl_pgm_cr={top_cjxl_pgm_cr[distance]:8.3f}  "
-                f"cjxl_pfm_cr={top_cjxl_pfm_cr[distance]:8.3f}"
+                f"cjxl_pfm_cr={top_cjxl_pfm_cr[distance]:8.3f}  "
+                f"internal_jxl_cr={top_internal_jxl_cr[distance]:8.3f}"
             )
 
     def build_j2k_counterpart(
@@ -406,6 +498,11 @@ def main() -> None:
         original_flat.nbytes,
         "j2k_vs_ebcc_jxl",
     )
+    bot_j2k_for_internal_jxl_errors, bot_j2k_for_internal_jxl_cr = build_j2k_counterpart(
+        top_internal_jxl_sizes,
+        original_flat.nbytes,
+        "j2k_vs_internal_jxl",
+    )
     bot_j2k_for_cjxl_pgm_errors, bot_j2k_for_cjxl_pgm_cr = build_j2k_counterpart(
         top_cjxl_pgm_sizes,
         pgm_source_bytes,
@@ -419,29 +516,35 @@ def main() -> None:
 
     global_min = min(
         min(float(np.min(err)) for err in top_ebcc_jxl_errors.values()),
+        min(float(np.min(err)) for err in top_internal_jxl_errors.values()),
         min(float(np.min(err)) for err in top_cjxl_pgm_errors.values()),
         min(float(np.min(err)) for err in top_cjxl_pfm_errors.values()),
         min(float(np.min(err)) for err in bot_j2k_for_ebcc_jxl_errors.values()),
+        min(float(np.min(err)) for err in bot_j2k_for_internal_jxl_errors.values()),
         min(float(np.min(err)) for err in bot_j2k_for_cjxl_pgm_errors.values()),
         min(float(np.min(err)) for err in bot_j2k_for_cjxl_pfm_errors.values()),
     )
     global_max = max(
         max(float(np.max(err)) for err in top_ebcc_jxl_errors.values()),
+        max(float(np.max(err)) for err in top_internal_jxl_errors.values()),
         max(float(np.max(err)) for err in top_cjxl_pgm_errors.values()),
         max(float(np.max(err)) for err in top_cjxl_pfm_errors.values()),
         max(float(np.max(err)) for err in bot_j2k_for_ebcc_jxl_errors.values()),
+        max(float(np.max(err)) for err in bot_j2k_for_internal_jxl_errors.values()),
         max(float(np.max(err)) for err in bot_j2k_for_cjxl_pgm_errors.values()),
         max(float(np.max(err)) for err in bot_j2k_for_cjxl_pfm_errors.values()),
     )
     bins = np.linspace(global_min, global_max, 120)
 
-    fig, axes = plt.subplots(2, 3, figsize=(26, 12), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 4, figsize=(34, 12), sharex=True, sharey=True)
     ax_top_ebcc_jxl = axes[0, 0]
-    ax_top_cjxl_pgm = axes[0, 1]
-    ax_top_cjxl_pfm = axes[0, 2]
+    ax_top_internal_jxl = axes[0, 1]
+    ax_top_cjxl_pgm = axes[0, 2]
+    ax_top_cjxl_pfm = axes[0, 3]
     ax_bot_j2k_ebcc_jxl = axes[1, 0]
-    ax_bot_j2k_cjxl_pgm = axes[1, 1]
-    ax_bot_j2k_cjxl_pfm = axes[1, 2]
+    ax_bot_j2k_internal_jxl = axes[1, 1]
+    ax_bot_j2k_cjxl_pgm = axes[1, 2]
+    ax_bot_j2k_cjxl_pfm = axes[1, 3]
     cmap = plt.get_cmap("tab10")
 
     for idx, distance in enumerate(DISTANCES):
@@ -453,6 +556,15 @@ def main() -> None:
             density=True,
             color=cmap(idx),
             label=f"d={distance:g}, CR={top_ebcc_jxl_cr[distance]:.2f}",
+        )
+        ax_top_internal_jxl.hist(
+            top_internal_jxl_errors[distance],
+            bins=bins,
+            histtype="step",
+            linewidth=1.8,
+            density=True,
+            color=cmap(idx),
+            label=f"d={distance:g}, CR={top_internal_jxl_cr[distance]:.2f}",
         )
         ax_top_cjxl_pgm.hist(
             top_cjxl_pgm_errors[distance],
@@ -481,6 +593,15 @@ def main() -> None:
             color=cmap(idx),
             label=f"d={distance:g}, CR={bot_j2k_for_ebcc_jxl_cr[distance]:.2f}",
         )
+        ax_bot_j2k_internal_jxl.hist(
+            bot_j2k_for_internal_jxl_errors[distance],
+            bins=bins,
+            histtype="step",
+            linewidth=1.8,
+            density=True,
+            color=cmap(idx),
+            label=f"d={distance:g}, CR={bot_j2k_for_internal_jxl_cr[distance]:.2f}",
+        )
         ax_bot_j2k_cjxl_pgm.hist(
             bot_j2k_for_cjxl_pgm_errors[distance],
             bins=bins,
@@ -501,16 +622,20 @@ def main() -> None:
         )
 
     ax_top_ebcc_jxl.set_title("EBCC Pure JXL")
+    ax_top_internal_jxl.set_title("JXL Internal (encode/decode internal APIs)")
     ax_top_cjxl_pgm.set_title("cjxl (PGM uint16 input)")
     ax_top_cjxl_pfm.set_title("cjxl (PFM float input, normalized [0,1])")
-    ax_bot_j2k_ebcc_jxl.set_title("EBCC JP2 Counterpart (match top-left CR)")
-    ax_bot_j2k_cjxl_pgm.set_title("EBCC JP2 Counterpart (match top-middle CR)")
-    ax_bot_j2k_cjxl_pfm.set_title("EBCC JP2 Counterpart (match top-right CR)")
+    ax_bot_j2k_ebcc_jxl.set_title("EBCC JP2 Counterpart (match top-col1 CR)")
+    ax_bot_j2k_internal_jxl.set_title("EBCC JP2 Counterpart (match top-col2 CR)")
+    ax_bot_j2k_cjxl_pgm.set_title("EBCC JP2 Counterpart (match top-col3 CR)")
+    ax_bot_j2k_cjxl_pfm.set_title("EBCC JP2 Counterpart (match top-col4 CR)")
     all_axes = (
         ax_top_ebcc_jxl,
+        ax_top_internal_jxl,
         ax_top_cjxl_pgm,
         ax_top_cjxl_pfm,
         ax_bot_j2k_ebcc_jxl,
+        ax_bot_j2k_internal_jxl,
         ax_bot_j2k_cjxl_pgm,
         ax_bot_j2k_cjxl_pfm,
     )
