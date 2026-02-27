@@ -47,13 +47,6 @@
 #endif
 
 typedef struct {
-    uint8_t *buffer;
-    size_t size;        // size of the buffer (maximum allowed storage)
-    size_t length;      // number of data bytes in the buffer
-    size_t offset;
-} codec_data_buffer_t;
-
-typedef struct {
     size_t (*encode)(void *data, size_t *image_dims, size_t *tile_dims, float param, codec_data_buffer_t *out);
     void (*decode)(float **data, size_t *height, size_t *width, float minval, float maxval, codec_data_buffer_t *stream);
     float (*error_bound_search)(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float param,
@@ -72,7 +65,7 @@ static void j2k_decode_internal(float **data, size_t *height, size_t *width, flo
                                 codec_data_buffer_t *codec_data_buffer);
 static size_t jxl_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_param,
                                   codec_data_buffer_t *codec_data_buffer);
-static void jxl_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
+void jxl_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
                                 codec_data_buffer_t *codec_data_buffer);
 
 void codec_data_buffer_init(codec_data_buffer_t* data) {
@@ -408,7 +401,7 @@ static int get_env_int(const char *name, int default_value, int min_value, int m
     return (int) parsed;
 }
 
-static size_t jxl_encode_internal_with_effort(void *data,
+size_t jxl_encode_internal_with_effort(void *data,
                                               size_t *image_dims,
                                               float distance,
                                               codec_data_buffer_t *codec_data_buffer,
@@ -436,7 +429,7 @@ static size_t jxl_encode_internal_with_effort(void *data,
     basic_info.exponent_bits_per_sample = 0;
     basic_info.num_color_channels = 1;
     basic_info.num_extra_channels = 0;
-    basic_info.uses_original_profile = JXL_FALSE; // set to true affects compression ratio !
+    basic_info.uses_original_profile = distance == 0.0f ? JXL_TRUE : JXL_FALSE; // set to true affects compression ratio !
     if (JxlEncoderSetBasicInfo(encoder, &basic_info) != JXL_ENC_SUCCESS) {
         log_fatal("Failed to configure JXL basic info");
         JxlEncoderDestroy(encoder);
@@ -459,6 +452,12 @@ static size_t jxl_encode_internal_with_effort(void *data,
     }
     JxlEncoderFrameSettingsSetOption(frame_settings, JXL_ENC_FRAME_SETTING_EFFORT, effort);
     JxlEncoderSetFrameDistance(frame_settings, distance);
+    if (distance == 0.0f &&
+        JXL_ENC_SUCCESS != JxlEncoderSetFrameLossless(frame_settings, JXL_TRUE)) {
+      log_fatal("JxlEncoderSetFrameLossless() failed.");
+      JxlEncoderDestroy(encoder);
+      return 0;
+    }
 
     JxlPixelFormat pixel_format = {1, JXL_TYPE_UINT16, JXL_NATIVE_ENDIAN, 0};
     size_t image_size_bytes = image_dims[0] * image_dims[1] * sizeof(uint16_t);
@@ -514,7 +513,7 @@ static size_t jxl_encode_internal(void *data,
     return jxl_encode_internal_with_effort(data, image_dims, base_param, codec_data_buffer, effort);
 }
 
-static void jxl_decode_internal(float **data,
+void jxl_decode_internal(float **data,
                                 size_t *height,
                                 size_t *width,
                                 float minval,
