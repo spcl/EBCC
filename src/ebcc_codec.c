@@ -436,7 +436,7 @@ static size_t jxl_encode_internal_with_effort(void *data,
     basic_info.exponent_bits_per_sample = 0;
     basic_info.num_color_channels = 1;
     basic_info.num_extra_channels = 0;
-    basic_info.uses_original_profile = JXL_TRUE;
+    basic_info.uses_original_profile = JXL_FALSE; // set to true affects compression ratio !
     if (JxlEncoderSetBasicInfo(encoder, &basic_info) != JXL_ENC_SUCCESS) {
         log_fatal("Failed to configure JXL basic info");
         JxlEncoderDestroy(encoder);
