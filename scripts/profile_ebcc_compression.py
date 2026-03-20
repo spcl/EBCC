@@ -190,6 +190,7 @@ def classify_symbols(symbols: Sequence[str]) -> str | None:
 def analyze_perf_script(
     perf_exe: str,
     perf_data_path: Path,
+    show_unclassified: int,
 ) -> AnalysisResult:
     command = [perf_exe, "script", "-i", str(perf_data_path)]
     process = subprocess.Popen(
@@ -330,6 +331,7 @@ def main(argv: Sequence[str]) -> int:
     result = analyze_perf_script(
         perf_exe=args.perf,
         perf_data_path=perf_data_path,
+        show_unclassified=args.show_unclassified,
     )
     print_report(result, show_unclassified=args.show_unclassified)
     return 0
