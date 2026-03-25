@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import statistics
 import subprocess
 import sys
 from collections import Counter
@@ -46,6 +47,11 @@ PHASE_DEFINITIONS = (
 )
 
 
+@dataclass
+class SampleInfo:
+    sub_category: str | None  # "base_encode", "base_decode", etc.
+
+
 @dataclass(frozen=True)
 class AnalysisResult:
     total_weight: float
@@ -54,6 +60,7 @@ class AnalysisResult:
     processed_blocks: int
     weighted_by_period: bool
     unclassified_leaves: Counter[str]
+    subcall_counts: dict[str, dict[str, list[int]]]  # {ebcc_func: {sub_cat: [counts_per_invocation]}}
 
 
 def parse_cli(argv: Sequence[str]) -> tuple[argparse.Namespace, list[str]]:
@@ -187,6 +194,76 @@ def classify_symbols(symbols: Sequence[str]) -> str | None:
     return best_category
 
 
+def compute_subcall_counts(
+    samples: list[SampleInfo],
+    max_gap: int = 5,
+) -> dict[str, dict[str, list[int]]]:
+    """Compute per-EBCC-invocation counts of sub-function calls.
+
+    Instead of relying on ``ebcc_encode``/``ebcc_decode`` appearing in the
+    (potentially truncated) DWARF call stack, this function segments the sample
+    timeline into *sessions* — contiguous runs of classified samples (those
+    with a non-``None`` ``sub_category``).  A gap of more than *max_gap*
+    consecutive unclassified samples is treated as an invocation boundary.
+
+    Within each session the EBCC function type is inferred from the categories
+    present:
+
+    * If any ``base_encode`` or ``residual_encode`` sample appears →
+      ``ebcc_encode`` (only the encode path calls ``j2k_encode_internal`` or
+      ``spiht_encode``).
+    * Otherwise → ``ebcc_decode``.
+
+    A new sub-call is counted each time the observed sub-category transitions
+    to a *different* non-``None`` category.
+
+    Returns ``{ebcc_function: {sub_category: [count_per_invocation, ...]}}``.
+    """
+    # ---- 1. Segment into sessions ----
+    sessions: list[list[SampleInfo]] = []
+    current_session: list[SampleInfo] = []
+    gap = 0
+
+    for sample in samples:
+        if sample.sub_category is not None:
+            current_session.append(sample)
+            gap = 0
+        else:
+            gap += 1
+            if gap > max_gap and current_session:
+                sessions.append(current_session)
+                current_session = []
+
+    if current_session:
+        sessions.append(current_session)
+
+    # ---- 2. Analyse each session ----
+    result: dict[str, dict[str, list[int]]] = {}
+
+    for session in sessions:
+        categories_seen = {s.sub_category for s in session}
+
+        if categories_seen & {"base_encode", "residual_encode"}:
+            ebcc_func = "ebcc_encode"
+        else:
+            ebcc_func = "ebcc_decode"
+
+        # Count sub-category transitions
+        counts: dict[str, int] = {}
+        prev_cat: str | None = None
+        for s in session:
+            if s.sub_category != prev_cat:
+                counts[s.sub_category] = counts.get(s.sub_category, 0) + 1
+                prev_cat = s.sub_category
+
+        if ebcc_func not in result:
+            result[ebcc_func] = {}
+        for cat, count in counts.items():
+            result[ebcc_func].setdefault(cat, []).append(count)
+
+    return result
+
+
 def analyze_perf_script(
     perf_exe: str,
     perf_data_path: Path,
@@ -211,6 +288,7 @@ def analyze_perf_script(
     processed_blocks = 0
     weighted_by_period = False
     block: list[str] = []
+    sample_timeline: list[SampleInfo] = []
 
     def consume_block(lines: list[str]) -> None:
         nonlocal total_weight
@@ -231,6 +309,8 @@ def analyze_perf_script(
         processed_blocks += 1
 
         category = classify_symbols(symbols)
+        sample_timeline.append(SampleInfo(sub_category=category))
+
         if category is None:
             unclassified_leaves[symbols[0]] += weight
             return
@@ -264,6 +344,8 @@ def analyze_perf_script(
     if show_unclassified < 0:
         raise SystemExit("--show-unclassified must be >= 0.")
 
+    subcall_counts = compute_subcall_counts(sample_timeline)
+
     return AnalysisResult(
         total_weight=total_weight,
         classified_weight=classified_weight,
@@ -271,6 +353,7 @@ def analyze_perf_script(
         processed_blocks=processed_blocks,
         weighted_by_period=weighted_by_period,
         unclassified_leaves=unclassified_leaves,
+        subcall_counts=subcall_counts,
     )
 
 
@@ -299,6 +382,30 @@ def print_report(result: AnalysisResult, show_unclassified: int) -> None:
                 f"    {label}: {percent(category_weight, result.total_weight):6.2f}% of total, "
                 f"{percent(category_weight, phase_weight):6.2f}% of {phase_name}"
             )
+
+    if result.subcall_counts:
+        print()
+        print("Estimated sub-call counts per EBCC invocation (from sample transitions):")
+        for ebcc_func in ("ebcc_encode", "ebcc_decode"):
+            if ebcc_func not in result.subcall_counts:
+                continue
+            sub_cats = result.subcall_counts[ebcc_func]
+            n_invocations = max(len(v) for v in sub_cats.values()) if sub_cats else 0
+            print(f"  {ebcc_func} ({n_invocations} invocations observed):")
+            for cat in CATEGORY_ORDER:
+                counts = sub_cats.get(cat, [])
+                if not counts:
+                    print(f"    {cat}: no calls observed")
+                    continue
+                avg = statistics.mean(counts)
+                med = statistics.median(counts)
+                mn = min(counts)
+                mx = max(counts)
+                std = statistics.stdev(counts) if len(counts) > 1 else 0.0
+                print(
+                    f"    {cat}: avg={avg:.1f}  median={med:.1f}  "
+                    f"min={mn}  max={mx}  std={std:.1f}  (n={len(counts)})"
+                )
 
     if show_unclassified == 0 or not result.unclassified_leaves:
         return
