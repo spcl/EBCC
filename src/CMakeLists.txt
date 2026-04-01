@@ -39,6 +39,9 @@ endif()
 
 add_library(h5z_ebcc SHARED h5z_ebcc.c ebcc_codec.c spiht/spiht_re.c log/log.c)
 set_property(TARGET h5z_ebcc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+if(WIN32)
+  set_property(TARGET h5z_ebcc PROPERTY WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+endif()
 
 # Add static EBCC library for Rust bindings
 add_library(ebcc STATIC ebcc_codec.c spiht/spiht_re.c log/log.c)
