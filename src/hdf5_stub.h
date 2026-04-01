@@ -7,6 +7,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if defined(_WIN32) && defined(EBCC_DLL_EXPORTS)
+#define EBCC_API __declspec(dllexport)
+#else
+#define EBCC_API
+#endif
+
 /* Filter types and constants */
 typedef int H5Z_filter_t;
 
