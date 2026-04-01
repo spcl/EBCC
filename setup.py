@@ -14,6 +14,20 @@ class CMakeExtension(Extension):
 
 
 class CMakeBuild(build_ext):
+    @staticmethod
+    def _native_lib_name():
+        if sys.platform == "win32":
+            return "h5z_ebcc.dll"
+        if sys.platform == "darwin":
+            return "libh5z_ebcc.dylib"
+        return "libh5z_ebcc.so"
+
+    def get_ext_filename(self, ext_name):
+        if sys.platform == "win32":
+            ext_path = Path(*ext_name.split("."))
+            return str(ext_path.with_name(self._native_lib_name()))
+        return super().get_ext_filename(ext_name)
+
     def build_extension(self, ext):
         ext_path = Path(self.get_ext_fullpath(ext.name)).resolve()
 
@@ -27,6 +41,7 @@ class CMakeBuild(build_ext):
 
         cmake_args = [
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={lib_output_dir_str}",
+            f"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY={lib_output_dir_str}",
             f"-DCMAKE_BUILD_TYPE={cfg}",  # not used on MSVC, but no harm
         ]
         build_args = []
@@ -53,7 +68,8 @@ class CMakeBuild(build_ext):
             # Multi-config generators have a different way to specify configs
             if not single_config:
                 cmake_args += [
-                    f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={lib_output_dir_str}"
+                    f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={lib_output_dir_str}",
+                    f"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_{cfg.upper()}={lib_output_dir_str}",
                 ]
                 build_args += ["--config", cfg]
 
@@ -103,11 +119,7 @@ class CMakeBuild(build_ext):
         # Run CMake install to copy the library to the right location
         
         # Find and copy the built library to where setuptools expects it
-        lib_name = "libh5z_ebcc.so"
-        if sys.platform == "win32":
-            lib_name = "h5z_ebcc.dll"
-        elif sys.platform == "darwin":
-            lib_name = "libh5z_ebcc.dylib"
+        lib_name = self._native_lib_name()
 
         # Look for the library produced by CMake
         candidates = [
@@ -115,16 +127,17 @@ class CMakeBuild(build_ext):
             build_temp / "lib" / ext_path.name,
         ]
         built_lib = next((p for p in candidates if p.exists()), None)
+        if built_lib is None:
+            built_lib = next(build_temp.rglob(lib_name), None)
 
         print(f"Built library candidates: {[str(p) for p in candidates]}")
         
         if built_lib:
             import shutil
             # Copy to where setuptools expects the built extension
-            if not ext_path.exists():
-                ext_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(built_lib, ext_path)
-                print(f"Copied {built_lib.name} to {ext_path}")
+            ext_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(built_lib, ext_path)
+            print(f"Copied {built_lib.name} to {ext_path}")
         else:
             print(f"Warning: Could not find built library {lib_name}")
             print(f"Searched in: {build_temp / 'lib'}, {build_temp}")

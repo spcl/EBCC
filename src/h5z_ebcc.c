@@ -24,8 +24,8 @@ const H5Z_class2_t H5Z_EBCC[1] = {{
 
 
 
-H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; }
-const void *H5PLget_plugin_info(void) { return H5Z_EBCC; }
+EBCC_API H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; }
+EBCC_API const void *H5PLget_plugin_info(void) { return H5Z_EBCC; }
 
 float uint_ptr_to_float(const unsigned int *ptr) {
     return *((float *) ptr);
@@ -35,7 +35,7 @@ float uint_ptr_to_double(const unsigned int *ptr) {
     return *((double *) ptr);
 }
 
-void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned int cd_values[], size_t buf_size) {
+EBCC_API void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned int cd_values[], size_t buf_size) {
     config->dims[0] = buf_size / sizeof(float);
     if (config->dims[0] < cd_values[0] * cd_values[1]) {
         log_fatal("Buffer size %lu is smaller than the tile size %lu x %lu = %lu", config->dims[0], cd_values[0], cd_values[1], cd_values[0] * cd_values[1]);

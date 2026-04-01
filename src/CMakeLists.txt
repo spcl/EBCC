@@ -22,9 +22,26 @@ option(ENABLE_PERF "Enable Linux perf event collection around compression" OFF)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 
+if(WIN32)
+  # OpenJPEG exposes only the "openjp2" target on Windows; force a static build
+  # so EBCC can link it without pulling in the shared variant.
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+  set(BUILD_STATIC_LIBS ON CACHE BOOL "Build static libraries" FORCE)
+
+  # zstd builds both shared and static variants by default; disable the shared
+  # target on Windows to avoid unnecessary shared-library build failures.
+  set(ZSTD_BUILD_SHARED OFF CACHE BOOL "Build zstd shared libraries" FORCE)
+  set(ZSTD_BUILD_STATIC ON CACHE BOOL "Build zstd static libraries" FORCE)
+  set(OPENJPEG_LINK_TARGET openjp2)
+else()
+  set(OPENJPEG_LINK_TARGET openjp2_static)
+endif()
 
 add_library(h5z_ebcc SHARED h5z_ebcc.c ebcc_codec.c spiht/spiht_re.c log/log.c)
 set_property(TARGET h5z_ebcc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+if(WIN32)
+  target_compile_definitions(h5z_ebcc PRIVATE EBCC_DLL_EXPORTS)
+endif()
 
 # Add static EBCC library for Rust bindings
 add_library(ebcc STATIC ebcc_codec.c spiht/spiht_re.c log/log.c)
@@ -43,8 +60,8 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/log
 )
 
-target_link_libraries(h5z_ebcc PRIVATE libzstd_static openjp2_static)
-target_link_libraries(ebcc PRIVATE libzstd_static openjp2_static)
+target_link_libraries(h5z_ebcc PRIVATE libzstd_static ${OPENJPEG_LINK_TARGET})
+target_link_libraries(ebcc PRIVATE libzstd_static ${OPENJPEG_LINK_TARGET})
 
 if(ENABLE_PERF)
     target_compile_definitions(h5z_ebcc PRIVATE ENABLE_PERF)
