@@ -13,6 +13,7 @@ class CodecConfigT(ctypes.Structure):
         ('residual_compression_type', ctypes.c_int),
         ('residual_cr', ctypes.c_float),
         ('error', ctypes.c_float),
+        ('chunk_dims', ctypes.c_size_t * 3),
     ]
 
 class EBCCZarrFilter(Codec):

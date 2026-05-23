@@ -36,6 +36,10 @@ float uint_ptr_to_double(const unsigned int *ptr) {
 }
 
 EBCC_API void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned int cd_values[], size_t buf_size) {
+    for (size_t i = 0; i < NDIMS; ++i) {
+        config->chunk_dims[i] = 0;
+    }
+
     config->dims[0] = buf_size / sizeof(float);
     if (config->dims[0] < cd_values[0] * cd_values[1]) {
         log_fatal("Buffer size %lu is smaller than the tile size %lu x %lu = %lu", config->dims[0], cd_values[0], cd_values[1], cd_values[0] * cd_values[1]);

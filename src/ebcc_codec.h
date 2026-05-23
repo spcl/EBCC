@@ -28,10 +28,13 @@ typedef struct {
     residual_t residual_compression_type;
     float residual_cr;
     float error;
+    size_t chunk_dims[NDIMS];
 } codec_config_t;
 
 EBCC_API size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer);
 EBCC_API size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer);
+EBCC_API size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_buffer);
+EBCC_API size_t ebcc_decode_chunking(uint8_t *data, size_t data_size, float **out_buffer);
 EBCC_API void free_buffer(void *buffer);
 
 EBCC_API void print_config(codec_config_t *config);
