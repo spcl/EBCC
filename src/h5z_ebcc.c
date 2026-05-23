@@ -36,23 +36,46 @@ float uint_ptr_to_double(const unsigned int *ptr) {
 }
 
 EBCC_API void populate_config(codec_config_t *config, size_t cd_nelmts, const unsigned int cd_values[], size_t buf_size) {
+    if (cd_nelmts < 4) {
+        log_fatal("EBCC filter requires at least 4 configuration values, got %lu", cd_nelmts);
+        exit(1);
+    }
+
+    for (size_t i = 0; i < NDIMS; ++i) {
+        config->chunk_dims[i] = 0;
+    }
+
+    size_t tile_height = cd_values[0];
+    size_t tile_width = cd_values[1];
+
+    if (tile_height < 32 || tile_width < 32 ||
+            tile_height > EBCC_MAX_INTERNAL_IMAGE_DIM ||
+            tile_width > EBCC_MAX_INTERNAL_IMAGE_DIM) {
+        log_fatal("Tile size %lu x %lu is invalid, each dimension must be between 32 and %d",
+                tile_height, tile_width, EBCC_MAX_INTERNAL_IMAGE_DIM);
+        exit(1);
+    }
+
+    size_t tile_size = tile_height * tile_width;
     config->dims[0] = buf_size / sizeof(float);
-    if (config->dims[0] < cd_values[0] * cd_values[1]) {
-        log_fatal("Buffer size %lu is smaller than the tile size %lu x %lu = %lu", config->dims[0], cd_values[0], cd_values[1], cd_values[0] * cd_values[1]);
+    if (config->dims[0] < tile_size) {
+        log_fatal("Buffer size %lu is smaller than the tile size %lu x %lu = %lu", config->dims[0], tile_height, tile_width, tile_size);
         exit(1);
     }
-    if (config->dims[0] % (cd_values[0] * cd_values[1]) != 0) {
-        log_fatal("Buffer size %lu is not divisible by the tile size %lu x %lu = %lu", config->dims[0], cd_values[0], cd_values[1], cd_values[0] * cd_values[1]);
-        exit(1);
-    }
-    if (cd_values[0] < 32 || cd_values[1] < 32) {
-        log_fatal("Tile size %lu x %lu is too small, must be at least 32 x 32", cd_values[0], cd_values[1]);
+    if (config->dims[0] % tile_size != 0) {
+        log_fatal("Buffer size %lu is not divisible by the tile size %lu x %lu = %lu", config->dims[0], tile_height, tile_width, tile_size);
         exit(1);
     }
     for (size_t i = 0; i < 2; ++i) {
         size_t cur = cd_values[i];
         config->dims[0] /= cur;
         config->dims[i + 1] = cur;
+    }
+    if (config->dims[1] != 0 && config->dims[0] > EBCC_MAX_INTERNAL_IMAGE_DIM / config->dims[1]) {
+        log_fatal("Flattened EBCC image height %lu x %lu exceeds the limit of %d",
+                config->dims[0], config->dims[1],
+                EBCC_MAX_INTERNAL_IMAGE_DIM);
+        exit(1);
     }
 
     config->base_cr = uint_ptr_to_float(&cd_values[2]);
