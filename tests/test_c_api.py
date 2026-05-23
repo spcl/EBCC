@@ -11,7 +11,9 @@ except (FileNotFoundError, ImportError) as exc:
     pytest.skip(f"EBCC C API library is not available: {exc}", allow_module_level=True)
 
 
+NONE = 0
 MAX_ERROR = 1
+RELATIVE_ERROR = 2
 NDIMS = 3
 
 
@@ -48,16 +50,22 @@ def ebcc_lib():
         ctypes.POINTER(CodecConfigT),
         ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)),
     ]
+    lib.ebcc_encode_chunking_compat.restype = ctypes.c_size_t
+    lib.ebcc_encode_chunking_compat.argtypes = [
+        ndpointer(ctypes.c_float, flags="C_CONTIGUOUS"),
+        ctypes.POINTER(CodecConfigT),
+        ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)),
+    ]
     lib.free_buffer.argtypes = [ctypes.c_void_p]
     lib.free_buffer.restype = None
     return lib
 
 
-def make_config(shape, chunk_shape=None, *, base_cr=2.0, error=0.01):
+def make_config(shape, chunk_shape=None, *, base_cr=2.0, error=0.01, residual_type=MAX_ERROR):
     config = CodecConfigT()
     config.dims[:] = shape
     config.base_cr = base_cr
-    config.residual_compression_type = MAX_ERROR
+    config.residual_compression_type = residual_type
     config.residual_cr = 0.0
     config.error = error
     config.chunk_dims[:] = chunk_shape or (0, 0, 0)
@@ -74,6 +82,27 @@ def encode_chunking(lib, data, config):
     out_buffer = ctypes.POINTER(ctypes.c_ubyte)()
     flattened = np.ascontiguousarray(data, dtype=np.float32).ravel()
     encoded_size = lib.ebcc_encode_chunking(
+        flattened,
+        ctypes.byref(config),
+        ctypes.byref(out_buffer),
+    )
+    assert encoded_size > 0
+    assert out_buffer
+
+    try:
+        out_array = ctypes.cast(
+            out_buffer,
+            ctypes.POINTER(ctypes.c_ubyte * encoded_size),
+        ).contents
+        return bytes(out_array)
+    finally:
+        lib.free_buffer(out_buffer)
+
+
+def encode_chunking_compat(lib, data, config):
+    out_buffer = ctypes.POINTER(ctypes.c_ubyte)()
+    flattened = np.ascontiguousarray(data, dtype=np.float32).ravel()
+    encoded_size = lib.ebcc_encode_chunking_compat(
         flattened,
         ctypes.byref(config),
         ctypes.byref(out_buffer),
@@ -226,6 +255,37 @@ def test_zero_chunk_dims_default_to_full_array_chunk(ebcc_lib):
 
     decoded = decode_chunking(ebcc_lib, encoded, shape)
     assert_roundtrip_close(decoded, data)
+
+
+def test_chunking_compat_zero_chunk_dims_default_to_internal_tiles(ebcc_lib):
+    shape = (1, 2048, 32)
+    data = make_data(shape)
+
+    encoded = encode_chunking_compat(
+        ebcc_lib,
+        data,
+        make_config(shape, residual_type=NONE),
+    )
+    header = read_chunking_header(encoded)
+
+    assert tuple(header.chunk_dims) == (1, 1024, 32)
+    assert header.num_chunks == 2
+    assert header.chunk_size == 1024 * 32
+
+
+def test_chunking_compat_accepts_relative_error_bound(ebcc_lib):
+    shape = (2, 32, 32)
+    data = make_data(shape)
+
+    encoded = encode_chunking_compat(
+        ebcc_lib,
+        data,
+        make_config(shape, error=0.01, residual_type=RELATIVE_ERROR),
+    )
+    header = read_chunking_header(encoded)
+
+    assert tuple(header.chunk_dims) == (1, 32, 32)
+    assert header.num_chunks == 2
 
 
 def test_decode_chunking_accepts_plain_ebcc_payload(ebcc_lib):

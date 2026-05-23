@@ -35,6 +35,7 @@ typedef struct {
 EBCC_API size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer);
 EBCC_API size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer);
 EBCC_API size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_buffer);
+EBCC_API size_t ebcc_encode_chunking_compat(float *data, codec_config_t *config, uint8_t **out_buffer);
 EBCC_API size_t ebcc_decode_chunking(uint8_t *data, size_t data_size, float **out_buffer);
 EBCC_API void free_buffer(void *buffer);
 
