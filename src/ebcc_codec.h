@@ -13,6 +13,7 @@
 #endif
 
 #define NDIMS 3
+#define EBCC_MAX_INTERNAL_IMAGE_DIM 2047
 #define EBCC_VERSION_MAJOR 0
 #define EBCC_VERSION_MINOR 1
 

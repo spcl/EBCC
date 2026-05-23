@@ -259,7 +259,10 @@ static int dims_are_valid(const size_t dims[NDIMS]) {
             return FALSE;
         }
     }
-    return image_height >= 32 && dims[NDIMS - 1] >= 32;
+    return image_height >= 32 &&
+            image_height <= EBCC_MAX_INTERNAL_IMAGE_DIM &&
+            dims[NDIMS - 1] >= 32 &&
+            dims[NDIMS - 1] <= EBCC_MAX_INTERNAL_IMAGE_DIM;
 }
 
 static size_t ceil_div_size_t(size_t numerator, size_t denominator) {
@@ -577,8 +580,8 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     assert_endianness();
 
     if (!dims_are_valid(config->dims)) {
-        log_fatal("Invalid EBCC dimensions: product(dims[0..%d]) and dims[%d] must be at least 32 x 32",
-                NDIMS - 2, NDIMS - 1);
+        log_fatal("Invalid EBCC dimensions: product(dims[0..%d]) and dims[%d] must be between 32 and %d",
+                NDIMS - 2, NDIMS - 1, EBCC_MAX_INTERNAL_IMAGE_DIM);
         return 0;
     }
 
@@ -901,8 +904,8 @@ size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_b
         }
     }
     if (!dims_are_valid(chunk_dims)) {
-        log_fatal("Invalid chunking dimensions: product(chunk_dims[0..%d]) and chunk_dims[%d] must be at least 32 x 32",
-                NDIMS - 2, NDIMS - 1);
+        log_fatal("Invalid chunking dimensions: product(chunk_dims[0..%d]) and chunk_dims[%d] must be between 32 and %d",
+                NDIMS - 2, NDIMS - 1, EBCC_MAX_INTERNAL_IMAGE_DIM);
         return 0;
     }
 
@@ -1270,8 +1273,8 @@ size_t ebcc_decode_chunking(uint8_t *data, size_t data_size, float **out_buffer)
     size_t header_chunk_size = header.chunk_size;
     size_t header_num_chunks = header.num_chunks;
     if (!dims_are_valid(chunk_dims)) {
-        log_fatal("Invalid chunked EBCC data: product(chunk_dims[0..%d]) and chunk_dims[%d] must be at least 32 x 32",
-                NDIMS - 2, NDIMS - 1);
+        log_fatal("Invalid chunked EBCC data: product(chunk_dims[0..%d]) and chunk_dims[%d] must be between 32 and %d",
+                NDIMS - 2, NDIMS - 1, EBCC_MAX_INTERNAL_IMAGE_DIM);
         return 0;
     }
 
