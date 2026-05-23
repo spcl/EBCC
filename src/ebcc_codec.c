@@ -1010,6 +1010,44 @@ size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_b
     return output.length;
 }
 
+size_t ebcc_encode_chunking_compat(float *data, codec_config_t *config, uint8_t **out_buffer) {
+    assert_endianness();
+    assert(NDIMS == 3);
+    log_set_level_from_env();
+
+    codec_config_t compat_config = *config;
+    int chunk_dims_all_zero = TRUE;
+    for (size_t i = 0; i < NDIMS; ++i) {
+        if (compat_config.chunk_dims[i] != 0) {
+            chunk_dims_all_zero = FALSE;
+            break;
+        }
+    }
+
+    if (chunk_dims_all_zero) {
+        compat_config.chunk_dims[0] = 1;
+        compat_config.chunk_dims[1] = compat_config.dims[1] > EBCC_MAX_INTERNAL_IMAGE_DIM ?
+                1024 : compat_config.dims[1];
+        compat_config.chunk_dims[2] = compat_config.dims[2] > EBCC_MAX_INTERNAL_IMAGE_DIM ?
+                1024 : compat_config.dims[2];
+        log_info("ebcc_encode_chunking_compat chunk dimensions: (%lu, %lu, %lu)",
+                compat_config.chunk_dims[0], compat_config.chunk_dims[1], compat_config.chunk_dims[2]);
+    }
+
+    if (compat_config.residual_compression_type == RELATIVE_ERROR) {
+        size_t total_size = 0;
+        if (!product_size_t(compat_config.dims, &total_size) || total_size == 0) {
+            log_fatal("Invalid EBCC dimensions: size overflow or zero-sized data");
+            return 0;
+        }
+        check_nan_inf(data, total_size);
+        compat_config.error *= get_data_range(data, total_size);
+        compat_config.residual_compression_type = MAX_ERROR;
+    }
+
+    return ebcc_encode_chunking(data, &compat_config, out_buffer);
+}
+
 void j2k_decode_internal(float **data, size_t *height, size_t *width, float minval, float maxval,
         codec_data_buffer_t *codec_data_buffer) {
     codec_data_buffer_rewind(codec_data_buffer);
