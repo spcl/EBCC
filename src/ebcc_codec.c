@@ -205,6 +205,7 @@ typedef struct {
     uint8_t magic[4];
     uint32_t version;
     uint32_t ndims;
+    uint32_t reserved;
     uint64_t dims[NDIMS];
     uint64_t chunk_dims[NDIMS];
     uint64_t num_chunks;
@@ -212,7 +213,6 @@ typedef struct {
 } ebcc_chunking_header_t;
 
 EBCC_STATIC_ASSERT(sizeof(float) == 4, "EBCC serialization requires 32-bit float");
-EBCC_STATIC_ASSERT(sizeof(size_t) == 8, "EBCC chunking serialization requires 64-bit size_t");
 EBCC_STATIC_ASSERT(sizeof(ebcc_header_t) == 48, "EBCC header must be fixed-size");
 EBCC_STATIC_ASSERT(sizeof(ebcc_chunking_header_t) == 80, "EBCC chunking header must be fixed-size");
 
@@ -244,6 +244,42 @@ static int product_size_t(const size_t values[NDIMS], size_t *out) {
         }
     }
     *out = product;
+    return TRUE;
+}
+
+static int size_t_to_uint64(size_t value, uint64_t *out) {
+    uint64_t converted = (uint64_t) value;
+    if ((size_t) converted != value) {
+        return FALSE;
+    }
+    *out = converted;
+    return TRUE;
+}
+
+static int uint64_to_size_t(uint64_t value, size_t *out) {
+    size_t converted = (size_t) value;
+    if ((uint64_t) converted != value) {
+        return FALSE;
+    }
+    *out = converted;
+    return TRUE;
+}
+
+static int size_t_array_to_uint64_array(const size_t src[NDIMS], uint64_t dst[NDIMS]) {
+    for (size_t i = 0; i < NDIMS; ++i) {
+        if (!size_t_to_uint64(src[i], &dst[i])) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+static int uint64_array_to_size_t_array(const uint64_t src[NDIMS], size_t dst[NDIMS]) {
+    for (size_t i = 0; i < NDIMS; ++i) {
+        if (!uint64_to_size_t(src[i], &dst[i])) {
+            return FALSE;
+        }
+    }
     return TRUE;
 }
 
@@ -940,12 +976,14 @@ size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_b
     memcpy(header.magic, EBCC_CHUNKING_HEADER_MAGIC, 4);
     header.version = EBCC_CHUNKING_HEADER_VERSION;
     header.ndims = NDIMS;
-    for (size_t i = 0; i < NDIMS; ++i) {
-        header.dims[i] = config->dims[i];
-        header.chunk_dims[i] = chunk_dims[i];
+    if (!size_t_array_to_uint64_array(config->dims, header.dims) ||
+            !size_t_array_to_uint64_array(chunk_dims, header.chunk_dims) ||
+            !size_t_to_uint64(num_chunks, &header.num_chunks) ||
+            !size_t_to_uint64(chunk_size, &header.chunk_size)) {
+        log_fatal("Invalid chunking dimensions: serialized size exceeds uint64_t");
+        codec_data_buffer_destroy(&output);
+        return 0;
     }
-    header.num_chunks = num_chunks;
-    header.chunk_size = chunk_size;
 
     if (!codec_data_buffer_append(&output, &header, sizeof(header))) {
         log_fatal("Failed to allocate chunked EBCC output header");
@@ -987,7 +1025,15 @@ size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_b
             return 0;
         }
 
-        uint64_t chunk_stream_size_u64 = chunk_stream_size;
+        uint64_t chunk_stream_size_u64 = 0;
+        if (!size_t_to_uint64(chunk_stream_size, &chunk_stream_size_u64)) {
+            log_fatal("Failed to append chunk %lu to chunked EBCC output: chunk size exceeds uint64_t",
+                    chunk_linear);
+            free_buffer(chunk_stream);
+            free(chunk_buffer);
+            codec_data_buffer_destroy(&output);
+            return 0;
+        }
         if (!codec_data_buffer_append(&output, &chunk_stream_size_u64, sizeof(chunk_stream_size_u64)) ||
                 !codec_data_buffer_append(&output, chunk_stream, chunk_stream_size)) {
             log_fatal("Failed to append chunk %lu to chunked EBCC output", chunk_linear);
@@ -1299,12 +1345,15 @@ size_t ebcc_decode_chunking(uint8_t *data, size_t data_size, float **out_buffer)
 
     size_t dims[NDIMS];
     size_t chunk_dims[NDIMS];
-    for (size_t i = 0; i < NDIMS; ++i) {
-        dims[i] = header.dims[i];
-        chunk_dims[i] = header.chunk_dims[i];
+    size_t header_chunk_size = 0;
+    size_t header_num_chunks = 0;
+    if (!uint64_array_to_size_t_array(header.dims, dims) ||
+            !uint64_array_to_size_t_array(header.chunk_dims, chunk_dims) ||
+            !uint64_to_size_t(header.chunk_size, &header_chunk_size) ||
+            !uint64_to_size_t(header.num_chunks, &header_num_chunks)) {
+        log_fatal("Invalid chunked EBCC data: header field exceeds local SIZE_MAX");
+        return 0;
     }
-    size_t header_chunk_size = header.chunk_size;
-    size_t header_num_chunks = header.num_chunks;
     if (!dims_are_valid(chunk_dims)) {
         log_fatal("Invalid chunked EBCC data: product(chunk_dims[0..%d]) and chunk_dims[%d] must be between %d and %d",
                 NDIMS - 2, NDIMS - 1, EBCC_MIN_INTERNAL_IMAGE_DIM, EBCC_MAX_INTERNAL_IMAGE_DIM);
@@ -1351,7 +1400,13 @@ size_t ebcc_decode_chunking(uint8_t *data, size_t data_size, float **out_buffer)
         uint64_t chunk_stream_size_u64 = 0;
         memcpy(&chunk_stream_size_u64, iter, sizeof(chunk_stream_size_u64));
         iter += sizeof(chunk_stream_size_u64);
-        size_t chunk_stream_size = chunk_stream_size_u64;
+        size_t chunk_stream_size = 0;
+        if (!uint64_to_size_t(chunk_stream_size_u64, &chunk_stream_size)) {
+            log_fatal("Invalid chunked EBCC data: chunk payload size exceeds local SIZE_MAX");
+            free(*out_buffer);
+            *out_buffer = NULL;
+            return 0;
+        }
         if (chunk_stream_size > (size_t) (end - iter)) {
             log_fatal("Invalid chunked EBCC data: truncated chunk payload");
             free(*out_buffer);
