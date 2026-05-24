@@ -48,11 +48,11 @@ EBCC_API void populate_config(codec_config_t *config, size_t cd_nelmts, const un
     size_t tile_height = cd_values[0];
     size_t tile_width = cd_values[1];
 
-    if (tile_height < 32 || tile_width < 32 ||
+    if (tile_height < EBCC_MIN_INTERNAL_IMAGE_DIM || tile_width < EBCC_MIN_INTERNAL_IMAGE_DIM ||
             tile_height > EBCC_MAX_INTERNAL_IMAGE_DIM ||
             tile_width > EBCC_MAX_INTERNAL_IMAGE_DIM) {
-        log_fatal("Tile size %lu x %lu is invalid, each dimension must be between 32 and %d",
-                tile_height, tile_width, EBCC_MAX_INTERNAL_IMAGE_DIM);
+        log_fatal("Tile size %lu x %lu is invalid, each dimension must be between %d and %d",
+                tile_height, tile_width, EBCC_MIN_INTERNAL_IMAGE_DIM, EBCC_MAX_INTERNAL_IMAGE_DIM);
         exit(1);
     }
 
