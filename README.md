@@ -80,5 +80,9 @@ HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 setfilter,filename=myfilter tempera
 
 # Extra configurations through environment variables
 - `EBCC_LOG_LEVEL`: valid value int [0, 5], default to 3, 0 - TRACE, 1 - DEBUG, 2 - INFO, 3 - WARN, 4 - ERROR, 5 - FATAL
-- `EBCC_INIT_BASE_ERROR_QUANTILE`: valid value float [0, 1), default to 1e-6, set to 0 to turn off residual compression layer
-- `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK`: when set, turn off pure JP2 fallback (not recommended)
+- `EBCC_INIT_BASE_ERROR_QUANTILE`: valid value float [0, 1), default to 1e-6. For max-error modes, the base JP2 layer is optimized so at least `1 - EBCC_INIT_BASE_ERROR_QUANTILE` of values are within the optimization error target before residual compression is considered. Set to 0 to require the base layer itself to satisfy the target everywhere, which can make residual compression unnecessary.
+- `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK`: when set, turn off the final pure JP2 fallback that can replace JP2 + residual if pure JP2 is smaller or residual compression cannot satisfy the target (not recommended).
+- `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK_CONSISTENCY`: when set, skip resetting the pure JP2 fallback search to the original `base_cr` before enforcing the final max-error target. This can save work but may make fallback behavior less consistent with a fresh pure-base search.
+- `EBCC_DISABLE_MEAN_ADJUSTMENT`: when set, do not shift the stored `minval` and `maxval` by the measured mean compression error. Disabling this keeps the selected compressed representation unchanged by any final mean-bias correction.
+- `EBCC_ERROR_BOUND_STRICT_MODE`: valid value `1` to enable. When enabled, abort compression if the selected pure JP2 or lossless JP2 fallback still exceeds the configured max-error bound. By default, EBCC emits a warning and keeps the selected fallback.
+- `EBCC_ERROR_BOUND_SLACK`: valid value float [0, 1), default to 0.01. When mean adjustment is enabled, max-error and relative-error modes optimize compression against `(1 - EBCC_ERROR_BOUND_SLACK) * error_target`, leaving the remaining fraction of the configured bound for the final mean adjustment. The final `minval`/`maxval` adjustment is still applied only if the adjusted reconstruction stays within the original configured error bound.

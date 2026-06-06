@@ -17,6 +17,22 @@ RELATIVE_ERROR = 2
 NDIMS = 3
 
 
+class EbccHeader(ctypes.Structure):
+    _fields_ = [
+        ("magic", ctypes.c_ubyte * 4),
+        ("version", ctypes.c_ubyte),
+        ("flags", ctypes.c_ubyte),
+        ("reserved", ctypes.c_uint16),
+        ("minval_bits", ctypes.c_uint32),
+        ("maxval_bits", ctypes.c_uint32),
+        ("coeffs_size", ctypes.c_uint64),
+        ("residual_minval_bits", ctypes.c_uint32),
+        ("residual_maxval_bits", ctypes.c_uint32),
+        ("compressed_size", ctypes.c_uint64),
+        ("tail_size", ctypes.c_uint64),
+    ]
+
+
 class ChunkingHeader(ctypes.Structure):
     _fields_ = [
         ("magic", ctypes.c_ubyte * 4),
@@ -171,6 +187,13 @@ def assert_roundtrip_close(decoded, data):
     assert np.allclose(decoded, data, atol=0.02)
 
 
+def codestream_transform(codestream):
+    marker_offset = codestream.index(b"\xff\x52")
+    segment_length = int.from_bytes(codestream[marker_offset + 2:marker_offset + 4], "big")
+    cod_payload = codestream[marker_offset + 4:marker_offset + 2 + segment_length]
+    return cod_payload[9]
+
+
 def test_chunking_header_and_slab_roundtrip(ebcc_lib):
     shape = (2, 32, 32)
     chunk_shape = (1, 32, 32)
@@ -298,3 +321,56 @@ def test_decode_chunking_accepts_plain_ebcc_payload(ebcc_lib):
 
     decoded = decode_chunking(ebcc_lib, encoded, shape)
     assert_roundtrip_close(decoded, data)
+
+
+def test_pure_jp2_lower_bound_failure_uses_lossless_jp2(ebcc_lib, monkeypatch):
+    shape = (1, 32, 32)
+    rng = np.random.default_rng(123)
+    data = rng.integers(0, 65536, size=shape, dtype=np.uint16).astype(np.float32)
+    data = np.ascontiguousarray(data)
+    data.ravel()[0] = 0.0
+    data.ravel()[1] = 65535.0
+    config = make_config(shape, base_cr=1000.0, error=1e-6, residual_type=MAX_ERROR)
+    monkeypatch.delenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK", raising=False)
+    monkeypatch.delenv("EBCC_ERROR_BOUND_STRICT_MODE", raising=False)
+    monkeypatch.setenv("EBCC_DISABLE_MEAN_ADJUSTMENT", "1")
+
+    encoded = encode_plain(ebcc_lib, data, config)
+    header = EbccHeader.from_buffer_copy(encoded)
+
+    assert bytes(header.magic) == b"EBCC"
+    assert header.coeffs_size == 0
+    assert header.compressed_size == 0
+    codestream_start = ctypes.sizeof(EbccHeader) + header.compressed_size
+    codestream = encoded[codestream_start:codestream_start + header.tail_size]
+    assert codestream_transform(codestream) == 1
+
+    decoded = decode_chunking(ebcc_lib, encoded, shape)
+    assert np.max(np.abs(decoded - data)) <= config.error
+
+
+def test_zero_base_error_quantile_does_not_bypass_lossless_fallback(ebcc_lib, monkeypatch):
+    shape = (1, 32, 32)
+    rng = np.random.default_rng(123)
+    data = rng.integers(0, 65536, size=shape, dtype=np.uint16).astype(np.float32)
+    data = np.ascontiguousarray(data)
+    data.ravel()[0] = 0.0
+    data.ravel()[1] = 65535.0
+    config = make_config(shape, base_cr=1000.0, error=1e-6, residual_type=MAX_ERROR)
+    monkeypatch.delenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK", raising=False)
+    monkeypatch.setenv("EBCC_DISABLE_MEAN_ADJUSTMENT", "1")
+    monkeypatch.setenv("EBCC_ERROR_BOUND_STRICT_MODE", "1")
+    monkeypatch.setenv("EBCC_INIT_BASE_ERROR_QUANTILE", "0")
+
+    encoded = encode_plain(ebcc_lib, data, config)
+    header = EbccHeader.from_buffer_copy(encoded)
+
+    assert bytes(header.magic) == b"EBCC"
+    assert header.coeffs_size == 0
+    assert header.compressed_size == 0
+    codestream_start = ctypes.sizeof(EbccHeader) + header.compressed_size
+    codestream = encoded[codestream_start:codestream_start + header.tail_size]
+    assert codestream_transform(codestream) == 1
+
+    decoded = decode_chunking(ebcc_lib, encoded, shape)
+    assert np.max(np.abs(decoded - data)) <= config.error

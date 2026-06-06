@@ -102,8 +102,8 @@ OPJ_SIZE_T read_from_buffer_stream(void *output_buffer, OPJ_SIZE_T len, codec_da
     return n_bytes_to_read;
 }
 
-void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_cr,
-        codec_data_buffer_t *codec_data_buffer) {
+void j2k_encode_internal_mode(void *data, size_t *image_dims, size_t *tile_dims, float base_cr,
+        int lossless, codec_data_buffer_t *codec_data_buffer) {
     size_t n_tiles = image_dims[0] / tile_dims[0];
     size_t tile_size = tile_dims[0] * tile_dims[1];
 
@@ -113,8 +113,8 @@ void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, floa
     // Set image parameters
     parameters.tcp_numlayers = 1;
     parameters.cp_disto_alloc = 1;
-    parameters.tcp_rates[0] = base_cr / 2;
-    parameters.irreversible = 1;
+    parameters.tcp_rates[0] = lossless ? 0 : base_cr / 2;
+    parameters.irreversible = lossless ? 0 : 1;
     parameters.cp_tx0 = 0;
     parameters.cp_ty0 = 0;
 
@@ -177,6 +177,16 @@ void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, floa
     opj_stream_destroy(stream);
     opj_image_destroy(image);
     opj_destroy_codec(codec);
+}
+
+void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_cr,
+        codec_data_buffer_t *codec_data_buffer) {
+    j2k_encode_internal_mode(data, image_dims, tile_dims, base_cr, FALSE, codec_data_buffer);
+}
+
+void j2k_encode_internal_lossless(void *data, size_t *image_dims, size_t *tile_dims,
+        codec_data_buffer_t *codec_data_buffer) {
+    j2k_encode_internal_mode(data, image_dims, tile_dims, 1.0f, TRUE, codec_data_buffer);
 }
 
 typedef uint8_t coo_v_t;
@@ -474,21 +484,17 @@ float get_max_relative_error(const float *data, const float *decoded, const floa
     return cur_max_error;
 }
 
-float get_max_error(const float *data, const float *decoded, const float *residual, const size_t tot_size) {
-    float cur_max_error = 0;
+float get_max_error(const float *data, const float *decoded, const float *residual,
+        const size_t tot_size, const double adjustment) {
+    double cur_max_error = 0.0;
     for (size_t i = 0; i < tot_size; ++i) {
-        float residual_value = residual ? residual[i] : 0;
-        float cur_error = fabsf(data[i] - (decoded[i] + residual_value));
-        /* this is pointwise relative error
-        if (error_type == RELATIVE_ERROR) {
-            cur_error /= fabsf(data[i]);
-        }
-        */
+        double residual_value = residual ? residual[i] : 0.0;
+        double cur_error = fabs((double) data[i] - ((double) decoded[i] + residual_value + adjustment));
         if (cur_error > cur_max_error) {
             cur_max_error = cur_error;
         }
     }
-    return cur_max_error;
+    return (float) cur_max_error;
 }
 
 double get_mean_error(const float *data, const float *decoded, const float *residual, const size_t tot_size) {
@@ -550,16 +556,25 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
     double error_target_quantile = get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
     double error_target_quantile_prev = error_target_quantile;
     double eps = 1e-8;
+    float cr_lower_bound = 1.0f / 2.0f;
 
     log_trace("current_cr: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", current_cr, 1-error_target_quantile, codec_data_buffer->length);
 
     /* TODO: log down best feasible cr!, best feasible error*/
     /* TODO: take error target quantile from env*/
     /* TODO: log according to env, with log.c */
-    while ((error_target_quantile < base_quantile_target) && (cr_lo >= 1./2)) {
+    while ((error_target_quantile < base_quantile_target) && (cr_lo >= cr_lower_bound)) {
         cr_lo /= 2;
         error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
         log_trace("cr_lo: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", cr_lo, 1-error_target_quantile, codec_data_buffer->length);
+    }
+    if (error_target_quantile < base_quantile_target && cr_lo < cr_lower_bound) {
+        log_warn("Normal JP2 compression went below CR lower bound %f while trying to reach error target quantile. Switching to lossless JP2.", cr_lower_bound);
+        codec_data_buffer_clear(codec_data_buffer);
+        j2k_encode_internal_lossless(scaled_data, image_dims, tile_dims, codec_data_buffer);
+        codec_data_buffer_rewind(codec_data_buffer);
+        j2k_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
+        return (float) (((double) tot_size * sizeof(float)) / (double) codec_data_buffer->length);
     }
     error_target_quantile = error_target_quantile_prev;
     while ((error_target_quantile >= base_quantile_target) && (cr_hi <= 1000)) {
@@ -616,16 +631,19 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
         return 0;
     }
 
-    int pure_base_codec_required = FALSE, pure_base_codec_done = FALSE, pure_base_codec_disabled = FALSE, pure_base_codec_consistency_disabled = FALSE, mean_error_adjustment_disabled = FALSE;
+    int pure_base_codec_required = FALSE, pure_base_codec_done = FALSE, pure_base_codec_disabled = FALSE, pure_base_codec_consistency_disabled = FALSE, mean_error_adjustment_disabled = FALSE, error_bound_strict_mode = FALSE;
     size_t compressed_size = 0, base_codec_buffer_length = 0;
     uint8_t *compressed_coefficients = NULL;
     uint8_t *coeffs_buf = NULL;
     uint8_t *base_codec_buffer = NULL; 
-    float residual_maxval = 0., residual_minval = 0., error_target = -1, current_cr = -1;
+    float residual_maxval = 0., residual_minval = 0., error_target = -1, optimization_error_target = -1, current_cr = -1;
     size_t coeffs_size = 0, coeffs_size_orig = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
     double trunc_hi, trunc_lo, best_feasible_trunc;
     double eps = 1e-8, base_error_quantile=1e-6;
     double cur_mean_error = 0.0;
+    double error_bound_slack = 0.01;
+    int mean_error_adjustment_within_error_bound = TRUE;
+    float mean_adjusted_max_error = 0.0f;
 
     // Load base_error_quantile from env var EBCC_INIT_BASE_ERROR_QUANTILE, default to 1e-6 if not set
 
@@ -635,8 +653,19 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     const char *env_disable_pure_base_codec_fallback = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK");
     const char *env_disable_pure_base_codec_consistency = getenv("EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK_CONSISTENCY");
     const char *env_disable_mean_adjustment = getenv("EBCC_DISABLE_MEAN_ADJUSTMENT");
+    const char *env_error_bound_strict_mode = getenv("EBCC_ERROR_BOUND_STRICT_MODE");
+    const char *env_error_bound_slack = getenv("EBCC_ERROR_BOUND_SLACK");
     if (env_base_error_quantile) {
         base_error_quantile = strtod(env_base_error_quantile, NULL);
+    }
+    if (env_error_bound_slack) {
+        char *endptr;
+        double parsed_error_bound_slack = strtod(env_error_bound_slack, &endptr);
+        if (*endptr == '\0' && parsed_error_bound_slack >= 0.0 && parsed_error_bound_slack < 1.0) {
+            error_bound_slack = parsed_error_bound_slack;
+        } else {
+            log_warn("Ignore EBCC_ERROR_BOUND_SLACK: %s, should be a float in [0, 1)", env_error_bound_slack);
+        }
     }
     if (env_disable_pure_base_codec_fallback) {
         pure_base_codec_disabled = TRUE;
@@ -647,11 +676,17 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     if (env_disable_mean_adjustment) {
         mean_error_adjustment_disabled = TRUE;
     }
+    if (env_error_bound_strict_mode && strcmp(env_error_bound_strict_mode, "1") == 0) {
+        error_bound_strict_mode = TRUE;
+    }
     double base_quantile_target = 1 - base_error_quantile;
 
     print_config(config);
     log_info("1 - base_quantile_target: %.1e", 1-base_quantile_target);
     log_info("Disable pure base compression fallback: %s", pure_base_codec_disabled ? "TRUE" : "FALSE");
+    log_info("Disable mean error adjustment: %s", mean_error_adjustment_disabled ? "TRUE" : "FALSE");
+    log_info("Error bound strict mode: %s", error_bound_strict_mode ? "TRUE" : "FALSE");
+    log_info("Error bound slack for mean adjustment: %.2e", mean_error_adjustment_disabled ? 0.0 : error_bound_slack);
 
 
 
@@ -724,18 +759,26 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             if (config->residual_compression_type == RELATIVE_ERROR) {
                 error_target *= get_data_range(data, tot_size);
             }
+            optimization_error_target = error_target;
+            if (!mean_error_adjustment_disabled) {
+                optimization_error_target *= (float) (1.0 - error_bound_slack);
+            }
+            log_info("Actual error target: %f, optimization error target: %f", error_target, optimization_error_target);
 
-            current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, base_quantile_target);
+            current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, base_quantile_target);
             
             for (size_t i = 0; i < tot_size; ++i) {
                 residual[i] = data[i] - decoded[i];
             }
             findMinMaxf(residual, tot_size, &residual_minval, &residual_maxval);
+            cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
 
             float cur_max_error = fmaxf(fabsf(residual_minval), fabsf(residual_maxval));
             float best_feasible_error = -1;
-            int skip_residual = cur_max_error <= error_target;
-            pure_base_codec_done = base_quantile_target == 1.0;
+            int skip_residual = cur_max_error <= optimization_error_target;
+            pure_base_codec_done = base_quantile_target == 1.0 && skip_residual;
+            mean_adjusted_max_error = get_max_error(data, decoded, NULL, tot_size, cur_mean_error);
+            mean_error_adjustment_within_error_bound = mean_adjusted_max_error <= error_target;
 
             if (pure_base_codec_done) log_info("Pure base compression is feasible, compression error: %f, cr: %f", cur_max_error, current_cr);
             
@@ -751,15 +794,17 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                 for (size_t i = 0; i < tot_size; ++i) {
                     residual[i] = residual_norm[i] * (residual_maxval - residual_minval) + residual_minval;
                 }
-                cur_max_error = get_max_error(data, decoded, residual, tot_size);
-                if (cur_max_error > error_target) {
-                    log_info("Could not reach error target of %f (%f instead), base compression max error: %f. Retry with pure base compression.", error_target, cur_max_error, fmaxf(fabsf(residual_minval), fabsf(residual_maxval)));
+                cur_max_error = get_max_error(data, decoded, residual, tot_size, 0.0);
+                if (cur_max_error > optimization_error_target) {
+                    log_info("Could not reach optimization error target of %f (%f instead), base compression max error: %f. Retry with pure base compression.", optimization_error_target, cur_max_error, fmaxf(fabsf(residual_minval), fabsf(residual_maxval)));
                     skip_residual = TRUE;
                     pure_base_codec_required = TRUE;
                     /*DONE: if this happen, go for full jpeg2000*/
                 } else {
                     best_feasible_error = cur_max_error;
                     cur_mean_error = get_mean_error(data, decoded, residual, tot_size);
+                    mean_adjusted_max_error = get_max_error(data, decoded, residual, tot_size, cur_mean_error);
+                    mean_error_adjustment_within_error_bound = mean_adjusted_max_error <= error_target;
                 }
             }
             if (!skip_residual) {
@@ -768,20 +813,20 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                 coeffs_trunc_bits = (size_t) trunc_lo;
                 cur_max_error = fmaxf(fabsf(residual_minval), fabsf(residual_maxval));
 
-                log_trace("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f, error_target: %f", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error, error_target);
+                log_trace("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f, optimization_error_target: %f", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error, optimization_error_target);
 
                 /* TODO: scan from small values, recursive doubling*/
                 
                 /* TODO: exit after 64 trials or examine initial trunc_hi satisfy the error requirement*/
                 best_feasible_trunc = trunc_hi;
-                while (((error_target - best_feasible_error)/error_target > eps) && (trunc_hi - trunc_lo > 8 * 4)) {
+                while (((optimization_error_target - best_feasible_error)/optimization_error_target > eps) && (trunc_hi - trunc_lo > 8 * 4)) {
                     coeffs_trunc_bits = ((size_t) ceill((trunc_hi + trunc_lo) / 2 / 8)) * 8; /* ceil to bytes*/
                     spiht_decode(coeffs_buf, coeffs_trunc_bits / 8, residual_norm, image_dims[0], image_dims[1], coeffs_trunc_bits);
                     for (size_t i = 0; i < tot_size; ++i) {
                         residual[i] = residual_norm[i] * (residual_maxval - residual_minval) + residual_minval;
                     }
-                    cur_max_error = get_max_error(data, decoded, residual, tot_size);
-                    if (cur_max_error > error_target) {
+                    cur_max_error = get_max_error(data, decoded, residual, tot_size, 0.0);
+                    if (cur_max_error > optimization_error_target) {
                         trunc_lo = coeffs_trunc_bits;
                     } else {
                         trunc_hi = coeffs_trunc_bits;
@@ -789,6 +834,8 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                             best_feasible_error = cur_max_error;
                             best_feasible_trunc = coeffs_trunc_bits;
                             cur_mean_error = get_mean_error(data, decoded, residual, tot_size);
+                            mean_adjusted_max_error = get_max_error(data, decoded, residual, tot_size, cur_mean_error);
+                            mean_error_adjustment_within_error_bound = mean_adjusted_max_error <= error_target;
                         }
                     }
                     log_trace("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error);
@@ -799,8 +846,8 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                 for (size_t i = 0; i < tot_size; ++i) {
                     residual[i] = residual_norm[i] * (residual_maxval - residual_minval) + residual_minval;
                 }
-                cur_max_error = get_max_error(data, decoded, residual, tot_size);
-                log_trace("best feasible trunc: %.1f, best feasible error: %f, actual error: %f, error_target: %f", best_feasible_trunc, best_feasible_error, cur_max_error, error_target);
+                cur_max_error = get_max_error(data, decoded, residual, tot_size, 0.0);
+                log_trace("best feasible trunc: %.1f, best feasible error: %f, actual error: %f, optimization_error_target: %f", best_feasible_trunc, best_feasible_error, cur_max_error, optimization_error_target);
                 fflush(stdout);
 #endif
             /* TODO: check if pure JPEG at this CR works better*/
@@ -808,7 +855,14 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             
         }
 
-        if (coeffs_size <= 16) coeffs_size = 0;
+        if (coeffs_size <= 16) {
+            coeffs_size = 0;
+            if (error_target > 0) {
+                cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
+                mean_adjusted_max_error = get_max_error(data, decoded, NULL, tot_size, cur_mean_error);
+                mean_error_adjustment_within_error_bound = mean_adjusted_max_error <= error_target;
+            }
+        }
         
         if (coeffs_size > 0) {
             compressed_size = ZSTD_compressBound(coeffs_size * sizeof(uint8_t));
@@ -833,20 +887,40 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                 current_cr = config->base_cr;
             }
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
-            error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, error_target, 1.0);
+            error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, 1.0);
 
-            if ((codec_data_buffer.length < compressed_size + base_codec_buffer_length) || pure_base_codec_required) {
-                /* Pure JP2 is better than JP2 + SPWV */
+            int pure_base_candidate = (codec_data_buffer.length < compressed_size + base_codec_buffer_length) || pure_base_codec_required;
+            if (pure_base_candidate) {
+                float pure_base_max_error = get_max_error(data, decoded, NULL, tot_size, 0.0);
+                cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
+                mean_adjusted_max_error = get_max_error(data, decoded, NULL, tot_size, cur_mean_error);
+                mean_error_adjustment_within_error_bound = mean_adjusted_max_error <= error_target;
+                int pure_base_within_error_bound = pure_base_max_error <= error_target ||
+                        (!mean_error_adjustment_disabled && mean_error_adjustment_within_error_bound);
+
+                if (!pure_base_within_error_bound) {
+                    if (error_bound_strict_mode) {
+                        log_fatal("Pure base compression exceeds error target %f (max error: %f, mean-adjusted max error: %f) and EBCC_ERROR_BOUND_STRICT_MODE=1",
+                                error_target, pure_base_max_error, mean_adjusted_max_error);
+                        exit(1);
+                    }
+                    log_warn("Using pure base compression even though it exceeds error target %f (max error: %f, mean-adjusted max error: %f)",
+                            error_target, pure_base_max_error, mean_adjusted_max_error);
+                }
+
+                /* Pure JP2 is selected for this candidate branch. */
                 if (codec_data_buffer.length < compressed_size + base_codec_buffer_length)
                     log_info("Pure base compression (%lu) is better than base (%lu) + residual (%lu) compression (sum: %lu)", codec_data_buffer.length, base_codec_buffer_length, compressed_size, compressed_size + base_codec_buffer_length);
-                
-                cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
 
                 compressed_size = 0;
                 coeffs_size = 0;
                 if (codec_data_buffer.length > base_codec_buffer_size_limit) { /* This can happen when pure_base_codec_required enabled */
                     free(base_codec_buffer);
                     base_codec_buffer = (uint8_t *) malloc(codec_data_buffer.length);
+                }
+                if (!base_codec_buffer) {
+                    log_fatal("Failed to allocate pure JP2 fallback buffer");
+                    exit(1);
                 }
                 base_codec_buffer_length = codec_data_buffer.length;
                 memcpy(base_codec_buffer, codec_data_buffer.buffer, base_codec_buffer_length);
@@ -862,9 +936,13 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
 
     log_info("Mean of compression error: %e", cur_mean_error);
     if (!mean_error_adjustment_disabled && fabs(cur_mean_error) > 1e-18) {
-        minval += cur_mean_error;
-        maxval += cur_mean_error;
-        log_info("Adjusting minval and maxval to %f, %f", minval, maxval);
+        if (mean_error_adjustment_within_error_bound) {
+            minval += cur_mean_error;
+            maxval += cur_mean_error;
+            log_info("Adjusting minval and maxval to %f, %f", minval, maxval);
+        } else {
+            log_info("Skipping mean adjustment because adjusted max error %f exceeds error target %f", mean_adjusted_max_error, error_target);
+        }
     }
 
     size_t codec_size = (const_field) ? sizeof(uint64_t) : base_codec_buffer_length; /*Only output array length if having a constant field*/
