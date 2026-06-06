@@ -784,7 +784,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             float cur_max_error = fmaxf(fabsf(residual_minval), fabsf(residual_maxval));
             float best_feasible_error = -1;
             int skip_residual = cur_max_error <= optimization_error_target;
-            pure_base_codec_done = base_quantile_target == 1.0;
+            pure_base_codec_done = base_quantile_target == 1.0 && skip_residual;
             mean_adjusted_max_error = get_max_error(data, decoded, NULL, tot_size, cur_mean_error);
             mean_error_adjustment_within_error_bound = mean_adjusted_max_error <= error_target;
 
