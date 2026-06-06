@@ -550,18 +550,13 @@ double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t
 
 float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr, 
                              codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval, 
-                             float *data, size_t tot_size, float error_target, double base_quantile_target,
-                             int *cr_lower_bound_exceeded) {
+                             float *data, size_t tot_size, float error_target, double base_quantile_target) {
     float cr_lo = current_cr;
     float cr_hi = current_cr;
     double error_target_quantile = get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
     double error_target_quantile_prev = error_target_quantile;
     double eps = 1e-8;
     float cr_lower_bound = 1.0f / 2.0f;
-
-    if (cr_lower_bound_exceeded) {
-        *cr_lower_bound_exceeded = FALSE;
-    }
 
     log_trace("current_cr: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", current_cr, 1-error_target_quantile, codec_data_buffer->length);
 
@@ -574,15 +569,12 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
         log_trace("cr_lo: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", cr_lo, 1-error_target_quantile, codec_data_buffer->length);
     }
     if (error_target_quantile < base_quantile_target && cr_lo < cr_lower_bound) {
-        if (cr_lower_bound_exceeded) {
-            *cr_lower_bound_exceeded = TRUE;
-            log_warn("Normal JP2 compression went below CR lower bound %f while trying to reach error target quantile. Switching to lossless JP2.", cr_lower_bound);
-            codec_data_buffer_clear(codec_data_buffer);
-            j2k_encode_internal_lossless(scaled_data, image_dims, tile_dims, codec_data_buffer);
-            codec_data_buffer_rewind(codec_data_buffer);
-            j2k_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
-            return (float) (((double) tot_size * sizeof(float)) / (double) codec_data_buffer->length);
-        }
+        log_warn("Normal JP2 compression went below CR lower bound %f while trying to reach error target quantile. Switching to lossless JP2.", cr_lower_bound);
+        codec_data_buffer_clear(codec_data_buffer);
+        j2k_encode_internal_lossless(scaled_data, image_dims, tile_dims, codec_data_buffer);
+        codec_data_buffer_rewind(codec_data_buffer);
+        j2k_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
+        return (float) (((double) tot_size * sizeof(float)) / (double) codec_data_buffer->length);
     }
     error_target_quantile = error_target_quantile_prev;
     while ((error_target_quantile >= base_quantile_target) && (cr_hi <= 1000)) {
@@ -773,7 +765,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             }
             log_info("Actual error target: %f, optimization error target: %f", error_target, optimization_error_target);
 
-            current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, base_quantile_target, NULL);
+            current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, base_quantile_target);
             
             for (size_t i = 0; i < tot_size; ++i) {
                 residual[i] = data[i] - decoded[i];
@@ -895,10 +887,9 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                 current_cr = config->base_cr;
             }
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
-            int pure_base_cr_lower_bound_exceeded = FALSE;
-            error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, 1.0, &pure_base_cr_lower_bound_exceeded);
+            error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, 1.0);
 
-            int pure_base_candidate = (codec_data_buffer.length < compressed_size + base_codec_buffer_length) || pure_base_codec_required || pure_base_cr_lower_bound_exceeded;
+            int pure_base_candidate = (codec_data_buffer.length < compressed_size + base_codec_buffer_length) || pure_base_codec_required;
             if (pure_base_candidate) {
                 float pure_base_max_error = get_max_error(data, decoded, NULL, tot_size, 0.0);
                 cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
