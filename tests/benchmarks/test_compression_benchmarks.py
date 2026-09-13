@@ -11,10 +11,10 @@ from ebcc.filter_wrapper import EBCC_Filter
 class TestCompressionBenchmarks:
     """Benchmark tests for EBCC compression performance"""
     
-    @pytest.mark.parametrize("error_target", [0.01, 0.1])
+    @pytest.mark.parametrize("relative_error_target", [0.01, 0.1])
     def test_ebcc_compression_performance(self, geopotential_dataset, benchmark_output_dir, 
-                                        error_target, benchmark):
-        """Benchmark EBCC compression with different error targets"""
+                                        relative_error_target, benchmark):
+        """Benchmark EBCC compression with chunk-range-relative error targets."""
         data = geopotential_dataset['z'].data.astype(np.float32)
         
         def compress_ebcc():
@@ -23,10 +23,10 @@ class TestCompressionBenchmarks:
                 height=data.shape[-2],
                 width=data.shape[-1],
                 data_dim=len(data.shape),
-                residual_opt=("max_error_target", error_target)
+                residual_opt=("relative_error_target", relative_error_target)
             )
             
-            output_file = benchmark_output_dir / f"ebcc_err{error_target}.h5"
+            output_file = benchmark_output_dir / f"ebcc_relerr{relative_error_target}.h5"
             with h5py.File(output_file, 'w') as f:
                 f.create_dataset('z', shape=data.shape, **ebcc_filter)
                 f['z'][...] = data
@@ -39,8 +39,10 @@ class TestCompressionBenchmarks:
         
         # Verify compression worked
         assert compressed_data.shape == data.shape
-        max_error = np.max(np.abs(data - compressed_data))
-        assert max_error <= error_target * 1.5  # Allow some tolerance
+        # Each HDF5 chunk is one spatial slice; EBCC uses that chunk's range.
+        chunk_ranges = np.ptp(data, axis=(-2, -1))
+        max_errors = np.max(np.abs(data - compressed_data), axis=(-2, -1))
+        assert np.all(max_errors <= relative_error_target * chunk_ranges)
         
         # Calculate compression ratio
         original_size = data.nbytes
