@@ -4,6 +4,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <limits.h>
 #include "log.h"
 #ifdef ENABLE_PERF
 #include <sys/prctl.h>
@@ -27,6 +28,51 @@
 
 #define WAVELET_LEVELS 3
 
+/* Storage and JPEG2000 representation. */
+#define EBCC_INITIAL_BUFFER_BYTES 1024
+#define EBCC_BUFFER_GROWTH_FACTOR 2
+#define EBCC_J2K_SAMPLE_BITS 16
+#define EBCC_J2K_RATE_DIVISOR 2
+#define EBCC_MAGIC_BYTES 4
+#define EBCC_FLOAT_BYTES 4
+#define EBCC_HEADER_BYTES 48
+#define EBCC_CHUNKING_HEADER_BYTES 80
+#define EBCC_SPATIAL_DIMS 2
+#define EBCC_COMPAT_NDIMS 3
+#define EBCC_COMPAT_TILE_SIZE 1024
+#define EBCC_PADDING_WARNING_DIVISOR 10
+#define EBCC_PERCENT_SCALE 100.0
+#define EBCC_DECIMAL_RADIX 10
+
+/* Base-layer search and error-bound defaults. */
+#define EBCC_SEARCH_REL_TOLERANCE 1e-8
+#define EBCC_BISECTION_DIVISOR 2
+#define EBCC_CR_BRACKET_FACTOR 2
+#define EBCC_CR_MIN 0.5f
+#define EBCC_CR_MAX 1000.0f
+#define EBCC_CR_INTERVAL_TOLERANCE 1.0
+#define EBCC_DEFAULT_BASE_ERROR_QUANTILE 1e-6
+#define EBCC_DEFAULT_ERROR_BOUND_SLACK 0.01
+#define EBCC_MEAN_ADJUSTMENT_MIN 1e-18
+
+/* Empirical ERA5 surface-variable seed: RMSE = error_target / scale. */
+#define EBCC_DEFAULT_PSNR_ERROR_SCALE 8.0
+#define EBCC_PSNR_MIN_DB 1.0
+#define EBCC_PSNR_MAX_DB 120.0
+#define EBCC_PSNR_DB_FACTOR 20.0
+#define EBCC_PSNR_INTERVAL_TOLERANCE_DB 0.25
+#define EBCC_PSNR_MAX_TRIALS 24
+#define EBCC_PSNR_MIN_STEP_DB 0.5
+#define EBCC_PSNR_MAX_STEP_DB 12.0
+#define EBCC_PSNR_ZERO_RMSE_STEP_DB 6.0
+#define EBCC_PSNR_MIN_TAIL_RMSE_RATIO 1.0
+
+/* Residual-layer coding and truncation search. */
+#define EBCC_SPIHT_HEADER_BITS 112.0
+#define EBCC_SPIHT_SEARCH_TOLERANCE_BYTES 4
+#define EBCC_SPIHT_MIN_PAYLOAD_BYTES 16
+#define EBCC_RESIDUAL_ZSTD_LEVEL 22
+
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 #define EBCC_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
 #else
@@ -46,7 +92,7 @@ void j2k_decode_internal(float **data, size_t *height, size_t *width, float minv
         codec_data_buffer_t *codec_data_buffer);
 
 void codec_data_buffer_init(codec_data_buffer_t* data) {
-    const size_t initial_buffer_size = 1024;
+    const size_t initial_buffer_size = EBCC_INITIAL_BUFFER_BYTES;
     data->buffer = (uint8_t *) malloc(initial_buffer_size);
     data->size = initial_buffer_size;
     data->length = 0;
@@ -75,7 +121,7 @@ void codec_data_buffer_dump(codec_data_buffer_t* data, const char *file_name) {
 OPJ_SIZE_T write_to_buffer_stream(void *input_buffer, OPJ_SIZE_T len, codec_data_buffer_t *stream_data) {
     size_t new_size = stream_data->size;
     while (stream_data->length + len > new_size) {
-        new_size *= 2;
+        new_size *= EBCC_BUFFER_GROWTH_FACTOR;
     }
 
     if (new_size > stream_data->size) {
@@ -103,7 +149,7 @@ OPJ_SIZE_T read_from_buffer_stream(void *output_buffer, OPJ_SIZE_T len, codec_da
 }
 
 void j2k_encode_internal_mode(void *data, size_t *image_dims, size_t *tile_dims, float base_cr,
-        int lossless, codec_data_buffer_t *codec_data_buffer) {
+        int lossless, float psnr, codec_data_buffer_t *codec_data_buffer) {
     size_t n_tiles = image_dims[0] / tile_dims[0];
     size_t tile_size = tile_dims[0] * tile_dims[1];
 
@@ -112,8 +158,10 @@ void j2k_encode_internal_mode(void *data, size_t *image_dims, size_t *tile_dims,
 
     // Set image parameters
     parameters.tcp_numlayers = 1;
-    parameters.cp_disto_alloc = 1;
-    parameters.tcp_rates[0] = lossless ? 0 : base_cr / 2;
+    parameters.cp_disto_alloc = psnr > 0 ? 0 : 1;
+    parameters.cp_fixed_quality = psnr > 0 ? 1 : 0;
+    parameters.tcp_rates[0] = lossless || psnr > 0 ? 0 : base_cr / EBCC_J2K_RATE_DIVISOR;
+    parameters.tcp_distoratio[0] = psnr;
     parameters.irreversible = lossless ? 0 : 1;
     parameters.cp_tx0 = 0;
     parameters.cp_ty0 = 0;
@@ -131,7 +179,7 @@ void j2k_encode_internal_mode(void *data, size_t *image_dims, size_t *tile_dims,
     cmptparm.dy = 1;
     cmptparm.w = image_dims[1];
     cmptparm.h = image_dims[0];
-    cmptparm.prec = 16;
+    cmptparm.prec = EBCC_J2K_SAMPLE_BITS;
     cmptparm.sgnd = 0;
     cmptparm.x0 = 0;
     cmptparm.y0 = 0;
@@ -181,12 +229,12 @@ void j2k_encode_internal_mode(void *data, size_t *image_dims, size_t *tile_dims,
 
 void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_cr,
         codec_data_buffer_t *codec_data_buffer) {
-    j2k_encode_internal_mode(data, image_dims, tile_dims, base_cr, FALSE, codec_data_buffer);
+    j2k_encode_internal_mode(data, image_dims, tile_dims, base_cr, FALSE, 0, codec_data_buffer);
 }
 
 void j2k_encode_internal_lossless(void *data, size_t *image_dims, size_t *tile_dims,
         codec_data_buffer_t *codec_data_buffer) {
-    j2k_encode_internal_mode(data, image_dims, tile_dims, 1.0f, TRUE, codec_data_buffer);
+    j2k_encode_internal_mode(data, image_dims, tile_dims, 1.0f, TRUE, 0, codec_data_buffer);
 }
 
 typedef uint8_t coo_v_t;
@@ -198,7 +246,7 @@ typedef struct {
 
 
 typedef struct {
-    uint8_t magic[4];
+    uint8_t magic[EBCC_MAGIC_BYTES];
     uint8_t version;
     uint8_t flags;
     uint16_t reserved;
@@ -212,7 +260,7 @@ typedef struct {
 } ebcc_header_t;
 
 typedef struct {
-    uint8_t magic[4];
+    uint8_t magic[EBCC_MAGIC_BYTES];
     uint32_t version;
     uint32_t ndims;
     uint32_t reserved;
@@ -222,9 +270,9 @@ typedef struct {
     uint64_t chunk_size;
 } ebcc_chunking_header_t;
 
-EBCC_STATIC_ASSERT(sizeof(float) == 4, "EBCC serialization requires 32-bit float");
-EBCC_STATIC_ASSERT(sizeof(ebcc_header_t) == 48, "EBCC header must be fixed-size");
-EBCC_STATIC_ASSERT(sizeof(ebcc_chunking_header_t) == 80, "EBCC chunking header must be fixed-size");
+EBCC_STATIC_ASSERT(sizeof(float) == EBCC_FLOAT_BYTES, "EBCC serialization requires 32-bit float");
+EBCC_STATIC_ASSERT(sizeof(ebcc_header_t) == EBCC_HEADER_BYTES, "EBCC header must be fixed-size");
+EBCC_STATIC_ASSERT(sizeof(ebcc_chunking_header_t) == EBCC_CHUNKING_HEADER_BYTES, "EBCC chunking header must be fixed-size");
 
 static uint32_t float_to_bits(float value) {
     uint32_t bits = 0;
@@ -387,10 +435,10 @@ static int codec_data_buffer_append(codec_data_buffer_t *buffer, const void *src
 
     size_t new_size = buffer->size;
     while (required_size > new_size) {
-        if (new_size > SIZE_MAX / 2) {
+        if (new_size > SIZE_MAX / EBCC_BUFFER_GROWTH_FACTOR) {
             return FALSE;
         }
-        new_size *= 2;
+        new_size *= EBCC_BUFFER_GROWTH_FACTOR;
     }
 
     if (new_size > buffer->size) {
@@ -441,14 +489,14 @@ void print_config(codec_config_t *config) {
 void log_set_level_from_env() {
     const char *env_log_level = getenv("EBCC_LOG_LEVEL");
 #ifdef DEBUG
-    log_set_level(0); /* Default to TRACE */
+    log_set_level(LOG_TRACE); /* Default to TRACE */
     log_info("DEBUG flag enabled in compilation");
 #else
-    log_set_level(3); /* Default to WARN */
+    log_set_level(LOG_WARN); /* Default to WARN */
 #endif
     if (env_log_level) {
         char *endptr;
-        int log_level = strtol(env_log_level, &endptr, 10);
+        int log_level = strtol(env_log_level, &endptr, EBCC_DECIMAL_RADIX);
         if (*endptr != '\0') log_warn("Ignore log level: %s, should be in [0, 5]: 0 - TRACE, 1 - DEBUG, 2 - INFO, 3 - WARN, 4 - ERROR, 5 - FATAL", env_log_level);
         else {
             log_set_level(log_level);
@@ -548,15 +596,125 @@ double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t
     return get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
 }
 
+/* Experimental quality search. PSNR controls RMSE, but acceptance still uses
+ * the requested pointwise-error quantile. Keep the feasible payload so the
+ * final binary-search trial does not require another encoding pass. */
+static float error_bound_j2k_psnr(uint16_t *scaled_data, size_t *image_dims,
+        size_t *tile_dims, codec_data_buffer_t *codec_data_buffer, float **decoded,
+        float minval, float maxval, float *data, size_t tot_size,
+        float error_target, double base_quantile_target) {
+    double scale = EBCC_DEFAULT_PSNR_ERROR_SCALE;
+    const char *env_scale = getenv("EBCC_PSNR_ERROR_SCALE");
+    if (env_scale) {
+        char *end;
+        double value = strtod(env_scale, &end);
+        if (end != env_scale && *end == '\0' && isfinite(value) && value > 0)
+            scale = value;
+        else
+            log_warn("Ignoring invalid EBCC_PSNR_ERROR_SCALE: %s", env_scale);
+    }
+    const double range = (double) maxval - minval;
+    double psnr = fmin(EBCC_PSNR_MAX_DB, fmax(EBCC_PSNR_MIN_DB,
+            EBCC_PSNR_DB_FACTOR * log10(range * scale / error_target)));
+    double infeasible_psnr = NAN, feasible_psnr = NAN;
+    uint8_t *best_buffer = NULL;
+    float *best_decoded = NULL;
+    size_t best_length = 0;
+    int iterations = 0;
+
+    log_trace("PSNR search start: initial_psnr=%.6f, error_scale=%.6f, quantile=%.9f",
+            psnr, scale, base_quantile_target);
+    for (int trial = 0; trial < EBCC_PSNR_MAX_TRIALS; ++trial) {
+        codec_data_buffer_clear(codec_data_buffer);
+        j2k_encode_internal_mode(scaled_data, image_dims, tile_dims, 0, FALSE,
+                (float) psnr, codec_data_buffer);
+        codec_data_buffer_rewind(codec_data_buffer);
+        j2k_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
+        ++iterations;
+        double squared_error = 0, max_error = 0;
+        size_t outliers = 0;
+        for (size_t i = 0; i < tot_size; ++i) {
+            double error = fabs((double) data[i] - (*decoded)[i]);
+            squared_error += error * error;
+            max_error = fmax(max_error, error);
+            outliers += error > error_target;
+        }
+        double rmse = sqrt(squared_error / tot_size);
+        double quantile = 1.0 - (double) outliers / tot_size;
+        int feasible = quantile >= base_quantile_target;
+        log_trace("PSNR trial: iteration=%d, psnr=%.6f, rmse=%.9g, max_error=%.9g, outliers=%lu, feasible=%d, jp2_length=%lu",
+                iterations, psnr, rmse, max_error, (unsigned long) outliers,
+                feasible, (unsigned long) codec_data_buffer->length);
+
+        if (feasible) {
+            feasible_psnr = psnr;
+            if (!best_buffer || codec_data_buffer->length < best_length) {
+                free(best_buffer);
+                best_length = codec_data_buffer->length;
+                best_buffer = malloc(best_length);
+                if (!best_decoded) best_decoded = malloc(tot_size * sizeof(float));
+                if (!best_buffer || !best_decoded) {
+                    log_fatal("Failed to allocate PSNR search candidate");
+                    exit(1);
+                }
+                memcpy(best_buffer, codec_data_buffer->buffer, best_length);
+                memcpy(best_decoded, *decoded, tot_size * sizeof(float));
+            }
+        } else {
+            infeasible_psnr = psnr;
+        }
+
+        if (isfinite(feasible_psnr) && isfinite(infeasible_psnr)) {
+            if (feasible_psnr - infeasible_psnr <= EBCC_PSNR_INTERVAL_TOLERANCE_DB) break;
+            psnr = (feasible_psnr + infeasible_psnr) / EBCC_BISECTION_DIVISOR;
+        } else {
+            /* PSNR is logarithmic in RMSE. Estimate the required quality change
+             * from the observed tail/RMSE ratio and the requested tail bound.
+             * The actual quantile check above remains authoritative. */
+            double tail_to_rmse = rmse > 0 ? max_error / rmse : scale;
+            double desired_rmse = error_target / fmax(tail_to_rmse, EBCC_PSNR_MIN_TAIL_RMSE_RATIO);
+            double delta = rmse > 0 ? EBCC_PSNR_DB_FACTOR * log10(rmse / desired_rmse)
+                    : -EBCC_PSNR_ZERO_RMSE_STEP_DB;
+            double step = fmin(EBCC_PSNR_MAX_STEP_DB, fmax(EBCC_PSNR_MIN_STEP_DB, fabs(delta)));
+            double next = fmin(EBCC_PSNR_MAX_DB, fmax(EBCC_PSNR_MIN_DB, psnr + (feasible ? -step : step)));
+            if (next == psnr) break;
+            psnr = next;
+        }
+    }
+
+    if (best_buffer) {
+        codec_data_buffer_clear(codec_data_buffer);
+        write_to_buffer_stream(best_buffer, best_length, codec_data_buffer);
+        memcpy(*decoded, best_decoded, tot_size * sizeof(float));
+        free(best_buffer);
+        free(best_decoded);
+    } else {
+        /* Match the CR search's lossless-JP2 fallback. The caller must still
+         * check the bound because float-to-uint16 quantization is not lossless. */
+        log_warn("PSNR search found no feasible candidate; trying lossless JP2");
+        codec_data_buffer_clear(codec_data_buffer);
+        j2k_encode_internal_lossless(scaled_data, image_dims, tile_dims, codec_data_buffer);
+        j2k_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
+    }
+    log_trace("PSNR search done: iterations=%d, feasible=%d, jp2_length=%lu",
+            iterations, best_length > 0, (unsigned long) codec_data_buffer->length);
+    return (float) ((double) tot_size * sizeof(float) / codec_data_buffer->length);
+}
+
 float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr, 
                              codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval, 
                              float *data, size_t tot_size, float error_target, double base_quantile_target) {
+    const char *base_search = getenv("EBCC_BASE_SEARCH");
+    if (base_search && strcmp(base_search, "psnr") == 0 && error_target > 0) {
+        return error_bound_j2k_psnr(scaled_data, image_dims, tile_dims, codec_data_buffer,
+                decoded, minval, maxval, data, tot_size, error_target, base_quantile_target);
+    }
     float cr_lo = current_cr;
     float cr_hi = current_cr;
     double error_target_quantile = get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
     double error_target_quantile_prev = error_target_quantile;
-    double eps = 1e-8;
-    float cr_lower_bound = 1.0f / 2.0f;
+    double eps = EBCC_SEARCH_REL_TOLERANCE;
+    float cr_lower_bound = EBCC_CR_MIN;
 
     log_trace("current_cr: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", current_cr, 1-error_target_quantile, codec_data_buffer->length);
 
@@ -564,7 +722,7 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
     /* TODO: take error target quantile from env*/
     /* TODO: log according to env, with log.c */
     while ((error_target_quantile < base_quantile_target) && (cr_lo >= cr_lower_bound)) {
-        cr_lo /= 2;
+        cr_lo /= EBCC_CR_BRACKET_FACTOR;
         error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
         log_trace("cr_lo: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", cr_lo, 1-error_target_quantile, codec_data_buffer->length);
     }
@@ -577,22 +735,22 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
         return (float) (((double) tot_size * sizeof(float)) / (double) codec_data_buffer->length);
     }
     error_target_quantile = error_target_quantile_prev;
-    while ((error_target_quantile >= base_quantile_target) && (cr_hi <= 1000)) {
-        cr_hi *= 2;
+    while ((error_target_quantile >= base_quantile_target) && (cr_hi <= EBCC_CR_MAX)) {
+        cr_hi *= EBCC_CR_BRACKET_FACTOR;
         error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_hi, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
         log_trace("cr_hi: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", cr_hi, 1-error_target_quantile, codec_data_buffer->length);
     }
 
     if (error_target_quantile >= base_quantile_target) {
-        log_trace("cr_hi: %f exceeds 1000, while base compression still feasible, stay at this level", cr_hi);
+        log_trace("cr_hi: %f exceeds %.0f, while base compression still feasible, stay at this level", cr_hi, (double) EBCC_CR_MAX);
         return cr_hi;
     }
 
     error_target_quantile = error_target_quantile_prev;
 
     assert(cr_lo <= cr_hi);
-    while ((fabs(error_target_quantile - base_quantile_target) > eps || error_target_quantile == 1.0) && cr_hi - cr_lo > 1.) {
-        current_cr = (cr_lo + cr_hi) / 2;
+    while ((fabs(error_target_quantile - base_quantile_target) > eps || error_target_quantile == 1.0) && cr_hi - cr_lo > EBCC_CR_INTERVAL_TOLERANCE) {
+        current_cr = (cr_lo + cr_hi) / EBCC_BISECTION_DIVISOR;
         error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
         log_trace("current_cr: %f, cr_lo: %f, cr_hi: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", current_cr, cr_lo, cr_hi, 1-error_target_quantile, codec_data_buffer->length);
         if (error_target_quantile < base_quantile_target) {
@@ -627,7 +785,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
 
     if (!dims_are_valid(config->dims)) {
         log_fatal("Invalid EBCC dimensions: product(dims[0..%d]) and dims[%d] must be between %d and %d",
-                NDIMS - 2, NDIMS - 1, EBCC_MIN_INTERNAL_IMAGE_DIM, EBCC_MAX_INTERNAL_IMAGE_DIM);
+                NDIMS - EBCC_SPATIAL_DIMS, NDIMS - 1, EBCC_MIN_INTERNAL_IMAGE_DIM, EBCC_MAX_INTERNAL_IMAGE_DIM);
         return 0;
     }
 
@@ -639,13 +797,14 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     float residual_maxval = 0., residual_minval = 0., error_target = -1, optimization_error_target = -1, current_cr = -1;
     size_t coeffs_size = 0, coeffs_size_orig = 0, coeffs_trunc_bits = 0; /*coeffs_size: #bytes*/
     double trunc_hi, trunc_lo, best_feasible_trunc;
-    double eps = 1e-8, base_error_quantile=1e-6;
+    double eps = EBCC_SEARCH_REL_TOLERANCE;
+    double base_error_quantile = EBCC_DEFAULT_BASE_ERROR_QUANTILE;
     double cur_mean_error = 0.0;
-    double error_bound_slack = 0.01;
+    double error_bound_slack = EBCC_DEFAULT_ERROR_BOUND_SLACK;
     int mean_error_adjustment_within_error_bound = TRUE;
     float mean_adjusted_max_error = 0.0f;
 
-    // Load base_error_quantile from env var EBCC_INIT_BASE_ERROR_QUANTILE, default to 1e-6 if not set
+    // Override the default base-error quantile with EBCC_INIT_BASE_ERROR_QUANTILE.
 
     log_set_level_from_env();
     
@@ -693,8 +852,8 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     codec_data_buffer_t codec_data_buffer;
     codec_data_buffer_init(&codec_data_buffer);
 
-    size_t image_dims[2] = {1, config->dims[NDIMS - 1]};
-    size_t tile_dims[2] = {config->dims[NDIMS - 2], config->dims[NDIMS - 1]};
+    size_t image_dims[EBCC_SPATIAL_DIMS] = {1, config->dims[NDIMS - 1]};
+    size_t tile_dims[EBCC_SPATIAL_DIMS] = {config->dims[NDIMS - EBCC_SPATIAL_DIMS], config->dims[NDIMS - 1]};
 
     for (size_t dim_idx = 0; dim_idx < NDIMS - 1; ++dim_idx) {
         image_dims[0] *= config->dims[dim_idx];
@@ -787,9 +946,9 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                 for (size_t i = 0; i < tot_size; ++i) {
                     residual_norm[i] = (residual[i] - residual_minval) / (residual_maxval - residual_minval);
                 }
-                coeffs_trunc_bits = codec_data_buffer.length * 8;
+                coeffs_trunc_bits = codec_data_buffer.length * CHAR_BIT;
                 spiht_encode(residual_norm, image_dims[0], image_dims[1], &coeffs_buf, &coeffs_size_orig, coeffs_trunc_bits, WAVELET_LEVELS);
-                spiht_decode(coeffs_buf, coeffs_size_orig, residual_norm, image_dims[0], image_dims[1], coeffs_size_orig*8);
+                spiht_decode(coeffs_buf, coeffs_size_orig, residual_norm, image_dims[0], image_dims[1], coeffs_size_orig * CHAR_BIT);
                 coeffs_size = coeffs_size_orig;
                 for (size_t i = 0; i < tot_size; ++i) {
                     residual[i] = residual_norm[i] * (residual_maxval - residual_minval) + residual_minval;
@@ -808,20 +967,20 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                 }
             }
             if (!skip_residual) {
-                trunc_hi = (double) coeffs_size * 8;
-                trunc_lo = 112.0; // that's the number of bits in the header
+                trunc_hi = (double) coeffs_size * CHAR_BIT;
+                trunc_lo = EBCC_SPIHT_HEADER_BITS;
                 coeffs_trunc_bits = (size_t) trunc_lo;
                 cur_max_error = fmaxf(fabsf(residual_minval), fabsf(residual_maxval));
 
-                log_trace("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f, optimization_error_target: %f", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error, optimization_error_target);
+                log_trace("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f, optimization_error_target: %f", trunc_lo, trunc_hi, coeffs_trunc_bits / CHAR_BIT, cur_max_error, optimization_error_target);
 
                 /* TODO: scan from small values, recursive doubling*/
                 
                 /* TODO: exit after 64 trials or examine initial trunc_hi satisfy the error requirement*/
                 best_feasible_trunc = trunc_hi;
-                while (((optimization_error_target - best_feasible_error)/optimization_error_target > eps) && (trunc_hi - trunc_lo > 8 * 4)) {
-                    coeffs_trunc_bits = ((size_t) ceill((trunc_hi + trunc_lo) / 2 / 8)) * 8; /* ceil to bytes*/
-                    spiht_decode(coeffs_buf, coeffs_trunc_bits / 8, residual_norm, image_dims[0], image_dims[1], coeffs_trunc_bits);
+                while (((optimization_error_target - best_feasible_error)/optimization_error_target > eps) && (trunc_hi - trunc_lo > CHAR_BIT * EBCC_SPIHT_SEARCH_TOLERANCE_BYTES)) {
+                    coeffs_trunc_bits = ((size_t) ceill((trunc_hi + trunc_lo) / EBCC_BISECTION_DIVISOR / CHAR_BIT)) * CHAR_BIT; /* ceil to bytes*/
+                    spiht_decode(coeffs_buf, coeffs_trunc_bits / CHAR_BIT, residual_norm, image_dims[0], image_dims[1], coeffs_trunc_bits);
                     for (size_t i = 0; i < tot_size; ++i) {
                         residual[i] = residual_norm[i] * (residual_maxval - residual_minval) + residual_minval;
                     }
@@ -838,11 +997,11 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
                             mean_error_adjustment_within_error_bound = mean_adjusted_max_error <= error_target;
                         }
                     }
-                    log_trace("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f", trunc_lo, trunc_hi, coeffs_trunc_bits / 8, cur_max_error);
+                    log_trace("trunc_lo: %.1f, trunc_hi: %.1f, coeffs_trunc_bytes: %lu, cur_max_error: %f", trunc_lo, trunc_hi, coeffs_trunc_bits / CHAR_BIT, cur_max_error);
                 }
-                coeffs_size = (size_t) (best_feasible_trunc / 8.);
+                coeffs_size = (size_t) (best_feasible_trunc / CHAR_BIT);
 #ifdef DEBUG
-                spiht_decode(coeffs_buf, coeffs_size, residual_norm, image_dims[0], image_dims[1], coeffs_size*8);
+                spiht_decode(coeffs_buf, coeffs_size, residual_norm, image_dims[0], image_dims[1], coeffs_size * CHAR_BIT);
                 for (size_t i = 0; i < tot_size; ++i) {
                     residual[i] = residual_norm[i] * (residual_maxval - residual_minval) + residual_minval;
                 }
@@ -855,7 +1014,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             
         }
 
-        if (coeffs_size <= 16) {
+        if (coeffs_size <= EBCC_SPIHT_MIN_PAYLOAD_BYTES) {
             coeffs_size = 0;
             if (error_target > 0) {
                 cur_mean_error = get_mean_error(data, decoded, NULL, tot_size);
@@ -867,12 +1026,12 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
         if (coeffs_size > 0) {
             compressed_size = ZSTD_compressBound(coeffs_size * sizeof(uint8_t));
             compressed_coefficients = (uint8_t *) malloc(compressed_size);
-            compressed_size = ZSTD_compress(compressed_coefficients, compressed_size, coeffs_buf, coeffs_size * sizeof(uint8_t), 22);
+            compressed_size = ZSTD_compress(compressed_coefficients, compressed_size, coeffs_buf, coeffs_size * sizeof(uint8_t), EBCC_RESIDUAL_ZSTD_LEVEL);
         }
 
         /* Try again with pure j2k compression , to see if adding residual compression has higher compression ratio */
         base_codec_buffer_length = codec_data_buffer.length;
-        size_t base_codec_buffer_size_limit = 2 * (compressed_size + base_codec_buffer_length);
+        size_t base_codec_buffer_size_limit = EBCC_BUFFER_GROWTH_FACTOR * (compressed_size + base_codec_buffer_length);
         base_codec_buffer = (uint8_t *) malloc(base_codec_buffer_size_limit);
         memcpy(base_codec_buffer, codec_data_buffer.buffer, base_codec_buffer_length);
         if ((! pure_base_codec_done) && (! pure_base_codec_disabled) && (config->residual_compression_type == MAX_ERROR ||
@@ -935,7 +1094,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     if (!const_field) free(scaled_data);
 
     log_info("Mean of compression error: %e", cur_mean_error);
-    if (!mean_error_adjustment_disabled && fabs(cur_mean_error) > 1e-18) {
+    if (!mean_error_adjustment_disabled && fabs(cur_mean_error) > EBCC_MEAN_ADJUSTMENT_MIN) {
         if (mean_error_adjustment_within_error_bound) {
             minval += cur_mean_error;
             maxval += cur_mean_error;
@@ -956,7 +1115,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
 
     uint8_t *iter = *out_buffer;
     ebcc_header_t header = {0};
-    memcpy(header.magic, EBCC_HEADER_MAGIC, 4);
+    memcpy(header.magic, EBCC_HEADER_MAGIC, EBCC_MAGIC_BYTES);
     header.version = EBCC_HEADER_VERSION;
     if (const_field) {
         header.flags |= EBCC_HEADER_FLAG_CONST_FIELD;
@@ -1014,7 +1173,7 @@ size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_b
     }
     if (!dims_are_valid(chunk_dims)) {
         log_fatal("Invalid chunking dimensions: product(chunk_dims[0..%d]) and chunk_dims[%d] must be between %d and %d",
-                NDIMS - 2, NDIMS - 1, EBCC_MIN_INTERNAL_IMAGE_DIM, EBCC_MAX_INTERNAL_IMAGE_DIM);
+                NDIMS - EBCC_SPATIAL_DIMS, NDIMS - 1, EBCC_MIN_INTERNAL_IMAGE_DIM, EBCC_MAX_INTERNAL_IMAGE_DIM);
         return 0;
     }
 
@@ -1040,10 +1199,10 @@ size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_b
         log_fatal("Invalid chunking dimensions: padded size overflow");
         return 0;
     }
-    if (padded_size > total_size && padded_size - total_size > total_size / 10) {
+    if (padded_size > total_size && padded_size - total_size > total_size / EBCC_PADDING_WARNING_DIVISOR) {
         log_warn("Chunk padding adds %lu values over %lu real values (%.2f%%)",
                 padded_size - total_size, total_size,
-                ((double) (padded_size - total_size) / (double) total_size) * 100.0);
+                ((double) (padded_size - total_size) / (double) total_size) * EBCC_PERCENT_SCALE);
     }
     int reuse_chunk_data = chunks_are_contiguous_slabs(config->dims, chunk_dims);
 
@@ -1051,7 +1210,7 @@ size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_b
     codec_data_buffer_init(&output);
 
     ebcc_chunking_header_t header = {0};
-    memcpy(header.magic, EBCC_CHUNKING_HEADER_MAGIC, 4);
+    memcpy(header.magic, EBCC_CHUNKING_HEADER_MAGIC, EBCC_MAGIC_BYTES);
     header.version = EBCC_CHUNKING_HEADER_VERSION;
     header.ndims = NDIMS;
     if (!size_t_array_to_uint64_array(config->dims, header.dims) ||
@@ -1131,7 +1290,7 @@ size_t ebcc_encode_chunking(float *data, codec_config_t *config, uint8_t **out_b
 
 size_t ebcc_encode_chunking_compat(float *data, codec_config_t *config, uint8_t **out_buffer) {
     assert_endianness();
-    assert(NDIMS == 3);
+    assert(NDIMS == EBCC_COMPAT_NDIMS);
     log_set_level_from_env();
 
     codec_config_t compat_config = *config;
@@ -1146,9 +1305,9 @@ size_t ebcc_encode_chunking_compat(float *data, codec_config_t *config, uint8_t 
     if (chunk_dims_all_zero) {
         compat_config.chunk_dims[0] = 1;
         compat_config.chunk_dims[1] = compat_config.dims[1] > EBCC_MAX_INTERNAL_IMAGE_DIM ?
-                1024 : compat_config.dims[1];
+                EBCC_COMPAT_TILE_SIZE : compat_config.dims[1];
         compat_config.chunk_dims[2] = compat_config.dims[2] > EBCC_MAX_INTERNAL_IMAGE_DIM ?
-                1024 : compat_config.dims[2];
+                EBCC_COMPAT_TILE_SIZE : compat_config.dims[2];
         log_info("ebcc_encode_chunking_compat chunk dimensions: (%lu, %lu, %lu)",
                 compat_config.chunk_dims[0], compat_config.chunk_dims[1], compat_config.chunk_dims[2]);
     }
@@ -1277,7 +1436,7 @@ size_t ebcc_decode_legacy(uint8_t *data, size_t data_size, float **out_buffer) {
         uint8_t *coeffs = (uint8_t *) calloc(coeffs_size, sizeof(uint8_t));
         float *residual = (float *) calloc(tot_size, sizeof(float));
         ZSTD_decompress(coeffs, coeffs_size * sizeof(uint8_t), coefficient_data, compressed_coefficient_size);
-        spiht_decode(coeffs, coeffs_size, residual, height, width, coeffs_size * 8);
+        spiht_decode(coeffs, coeffs_size, residual, height, width, coeffs_size * CHAR_BIT);
 
         for (size_t i = 0; i < tot_size; ++i) {
             (*out_buffer)[i] += residual[i] * (residual_maxval - residual_minval) + residual_minval;
@@ -1297,7 +1456,7 @@ size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
     size_t tot_size = 0;
     uint8_t *iter = data;
 
-    if (data_size < sizeof(ebcc_header_t) || memcmp(data, EBCC_HEADER_MAGIC, 4) != 0) {
+    if (data_size < sizeof(ebcc_header_t) || memcmp(data, EBCC_HEADER_MAGIC, EBCC_MAGIC_BYTES) != 0) {
         return ebcc_decode_legacy(data, data_size, out_buffer);
     }
 
@@ -1379,7 +1538,7 @@ size_t ebcc_decode(uint8_t *data, size_t data_size, float **out_buffer) {
         ZSTD_decompress(coeffs, coeffs_size * sizeof(uint8_t), coefficient_data, compressed_coefficient_size);
 
 
-        spiht_decode(coeffs, coeffs_size, residual, height, width, coeffs_size * 8);
+        spiht_decode(coeffs, coeffs_size, residual, height, width, coeffs_size * CHAR_BIT);
 
         for (size_t i = 0; i < tot_size; ++i) {
             (*out_buffer)[i] += residual[i] * (residual_maxval - residual_minval) + residual_minval;
@@ -1402,7 +1561,7 @@ size_t ebcc_decode_chunking(uint8_t *data, size_t data_size, float **out_buffer)
     log_set_level_from_env();
 
     if (data_size < sizeof(ebcc_chunking_header_t) ||
-            memcmp(data, EBCC_CHUNKING_HEADER_MAGIC, 4) != 0) {
+            memcmp(data, EBCC_CHUNKING_HEADER_MAGIC, EBCC_MAGIC_BYTES) != 0) {
         return ebcc_decode(data, data_size, out_buffer);
     }
 
@@ -1434,7 +1593,7 @@ size_t ebcc_decode_chunking(uint8_t *data, size_t data_size, float **out_buffer)
     }
     if (!dims_are_valid(chunk_dims)) {
         log_fatal("Invalid chunked EBCC data: product(chunk_dims[0..%d]) and chunk_dims[%d] must be between %d and %d",
-                NDIMS - 2, NDIMS - 1, EBCC_MIN_INTERNAL_IMAGE_DIM, EBCC_MAX_INTERNAL_IMAGE_DIM);
+                NDIMS - EBCC_SPATIAL_DIMS, NDIMS - 1, EBCC_MIN_INTERNAL_IMAGE_DIM, EBCC_MAX_INTERNAL_IMAGE_DIM);
         return 0;
     }
 

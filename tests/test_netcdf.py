@@ -7,6 +7,26 @@ from ebcc.filter_wrapper import EBCC_Filter
 
 class TestNetCDFIntegration:
     """Test NetCDF/HDF5 integration with EBCC filter"""
+
+    @pytest.mark.parametrize("relative_target", [0.001, 0.01, 0.1])
+    def test_psnr_search_error_bounds(self, monkeypatch, temp_hdf5_file, relative_target):
+        """PSNR's RMSE target must still satisfy the pointwise error bound."""
+        monkeypatch.setenv("EBCC_BASE_SEARCH", "psnr")
+        monkeypatch.delenv("EBCC_PSNR_ERROR_SCALE", raising=False)
+        y, x = np.mgrid[:64, :64]
+        smooth = 2000 * np.sin(x / 8) * np.cos(y / 9)
+        # Offset fields and a sparse outlier distinguish max error from RMSE.
+        smooth[31, 27] += 5000
+        data = np.stack([smooth, smooth * 0.1 + 300000]).astype(np.float32)
+        options = EBCC_Filter(base_cr=30, height=64, width=64, data_dim=3,
+                              residual_opt=("relative_error_target", relative_target))
+        with h5py.File(temp_hdf5_file, "w") as f:
+            f.create_dataset("data", shape=data.shape, **options)
+            f["data"][...] = data
+        with h5py.File(temp_hdf5_file, "r") as f:
+            restored = f["data"][...]
+        max_errors = np.max(np.abs(data - restored), axis=(-2, -1))
+        assert np.all(max_errors <= relative_target * np.ptp(data, axis=(-2, -1)))
     
     def test_basic_compression_decompression(self, climate_data, temp_hdf5_file):
         """Test basic compression and decompression round-trip"""
