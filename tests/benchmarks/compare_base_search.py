@@ -43,13 +43,17 @@ def capture_stderr(path):
 def trace_counts(path):
     counts = dict(base_trials=0, base_searches=0, final_reencodes=0,
                   residual_trials=0, residual_searches=0, residual_kept=0,
-                  lossless_fallbacks=0)
+                  lossless_fallbacks=0, warm_preparations=0, warm_reuses=0)
     for line in path.read_text().splitlines():
-        match = re.search(r"ebcc_codec\.c:\d+: (.*)", line)
+        match = re.search(r"ebcc_(?:codec|j2k)\.c:\d+: (.*)", line)
         if not match:
             continue
         message = match[1]
-        if message.startswith("PSNR search start:"):
+        if message == "Base warm start: prepare":
+            counts["warm_preparations"] += 1
+        elif message == "Base warm start: reuse":
+            counts["warm_reuses"] += 1
+        elif message.startswith("PSNR search start:"):
             counts["base_searches"] += 1
         elif message.startswith("PSNR trial:"):
             counts["base_trials"] += 1
@@ -104,7 +108,8 @@ def run_case(data, variable, target, mode, scale, repeat, args):
     relative = np.where((ranges == 0) & (errors != 0), np.inf, relative)
     passed = bool(np.all(errors <= target * ranges))
     result = dict(variable=variable, mode=mode, target=target, scale=scale, repeat=repeat,
-                  time_indices=args.time_indices, shape=data.shape,
+                  time_indices=args.time_indices, pressure_levels=args.pressure_levels,
+                  shape=data.shape,
                   input_bytes=data.nbytes, file_bytes=output.stat().st_size,
                   write_seconds=write_seconds, read_seconds=read_seconds,
                   write_cpu_seconds=write_cpu_seconds, read_cpu_seconds=read_cpu_seconds,
@@ -134,6 +139,7 @@ def main():
     parser.add_argument("--scales", nargs="+", type=float, help="Sweep multiple initial-guess scales")
     parser.add_argument("--variables", nargs="+", default=["z"])
     parser.add_argument("--time-indices", nargs="+", type=int, help="Select indices along the first non-spatial dimension")
+    parser.add_argument("--pressure-levels", nargs="+", type=float, help="Select pressure_level coordinates in hPa")
     parser.add_argument("--randomize", action="store_true", help="Shuffle mode/scale order with a fixed seed")
     parser.add_argument("--trace", action="store_true", help="Capture TRACE logs per case and count search trials")
     parser.add_argument("--keep-going", action="store_true", help="Record failed bounds and finish other configurations")
@@ -153,6 +159,10 @@ def main():
     with xr.open_dataset(args.input) as dataset:
         for variable in args.variables:
             array = dataset[variable]
+            if args.pressure_levels is not None:
+                if "pressure_level" not in array.dims:
+                    parser.error(f"{variable} has no pressure_level dimension")
+                array = array.sel(pressure_level=args.pressure_levels)
             if array.ndim < 2:
                 parser.error(f"{variable} has fewer than two dimensions")
             if args.time_indices is not None:

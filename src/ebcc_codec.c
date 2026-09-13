@@ -11,6 +11,7 @@
 #endif
 
 #include "openjpeg.h"
+#include "ebcc_j2k.h"
 #include "zstd.h"
 #include <assert.h>
 #ifdef __linux__
@@ -31,7 +32,6 @@
 /* Storage and JPEG2000 representation. */
 #define EBCC_INITIAL_BUFFER_BYTES 1024
 #define EBCC_BUFFER_GROWTH_FACTOR 2
-#define EBCC_J2K_SAMPLE_BITS 16
 #define EBCC_J2K_RATE_DIVISOR 2
 #define EBCC_MAGIC_BYTES 4
 #define EBCC_FLOAT_BYTES 4
@@ -149,7 +149,15 @@ OPJ_SIZE_T read_from_buffer_stream(void *output_buffer, OPJ_SIZE_T len, codec_da
 }
 
 void j2k_encode_internal_mode(void *data, size_t *image_dims, size_t *tile_dims, float base_cr,
-        int lossless, float psnr, codec_data_buffer_t *codec_data_buffer) {
+        int lossless, float psnr, codec_data_buffer_t *codec_data_buffer,
+        ebcc_j2k_session_t *session) {
+    if (session && !lossless) {
+        int result = ebcc_j2k_session_encode(session, psnr, base_cr / EBCC_J2K_RATE_DIVISOR,
+                (opj_stream_write_fn) write_to_buffer_stream, codec_data_buffer);
+        if (result > 0) return;
+        if (result < 0) log_warn("JPEG2000 warm start failed; using cold encoding for this chunk");
+        codec_data_buffer_clear(codec_data_buffer);
+    }
     size_t n_tiles = image_dims[0] / tile_dims[0];
     size_t tile_size = tile_dims[0] * tile_dims[1];
 
@@ -228,13 +236,13 @@ void j2k_encode_internal_mode(void *data, size_t *image_dims, size_t *tile_dims,
 }
 
 void j2k_encode_internal(void *data, size_t *image_dims, size_t *tile_dims, float base_cr,
-        codec_data_buffer_t *codec_data_buffer) {
-    j2k_encode_internal_mode(data, image_dims, tile_dims, base_cr, FALSE, 0, codec_data_buffer);
+        codec_data_buffer_t *codec_data_buffer, ebcc_j2k_session_t *session) {
+    j2k_encode_internal_mode(data, image_dims, tile_dims, base_cr, FALSE, 0, codec_data_buffer, session);
 }
 
 void j2k_encode_internal_lossless(void *data, size_t *image_dims, size_t *tile_dims,
         codec_data_buffer_t *codec_data_buffer) {
-    j2k_encode_internal_mode(data, image_dims, tile_dims, 1.0f, TRUE, 0, codec_data_buffer);
+    j2k_encode_internal_mode(data, image_dims, tile_dims, 1.0f, TRUE, 0, codec_data_buffer, NULL);
 }
 
 typedef uint8_t coo_v_t;
@@ -588,9 +596,9 @@ void findMinMaxf(const float *array, size_t size, float *min, float *max) {
 
 double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr, 
                              codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval, 
-                             float *data, size_t tot_size, float error_target) {
+                             float *data, size_t tot_size, float error_target, ebcc_j2k_session_t *session) {
     codec_data_buffer_clear(codec_data_buffer);
-    j2k_encode_internal(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer);
+    j2k_encode_internal(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer, session);
     codec_data_buffer_rewind(codec_data_buffer);
     j2k_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
     return get_error_target_quantile(data, *decoded, NULL, tot_size, error_target);
@@ -602,7 +610,7 @@ double emulate_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t
 static float error_bound_j2k_psnr(uint16_t *scaled_data, size_t *image_dims,
         size_t *tile_dims, codec_data_buffer_t *codec_data_buffer, float **decoded,
         float minval, float maxval, float *data, size_t tot_size,
-        float error_target, double base_quantile_target) {
+        float error_target, double base_quantile_target, ebcc_j2k_session_t *session) {
     double scale = EBCC_DEFAULT_PSNR_ERROR_SCALE;
     const char *env_scale = getenv("EBCC_PSNR_ERROR_SCALE");
     if (env_scale) {
@@ -627,7 +635,7 @@ static float error_bound_j2k_psnr(uint16_t *scaled_data, size_t *image_dims,
     for (int trial = 0; trial < EBCC_PSNR_MAX_TRIALS; ++trial) {
         codec_data_buffer_clear(codec_data_buffer);
         j2k_encode_internal_mode(scaled_data, image_dims, tile_dims, 0, FALSE,
-                (float) psnr, codec_data_buffer);
+                (float) psnr, codec_data_buffer, session);
         codec_data_buffer_rewind(codec_data_buffer);
         j2k_decode_internal(decoded, NULL, NULL, minval, maxval, codec_data_buffer);
         ++iterations;
@@ -703,11 +711,12 @@ static float error_bound_j2k_psnr(uint16_t *scaled_data, size_t *image_dims,
 
 float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, size_t *tile_dims, float current_cr, 
                              codec_data_buffer_t *codec_data_buffer, float **decoded, float minval, float maxval, 
-                             float *data, size_t tot_size, float error_target, double base_quantile_target) {
+                             float *data, size_t tot_size, float error_target, double base_quantile_target,
+                             ebcc_j2k_session_t *session) {
     const char *base_search = getenv("EBCC_BASE_SEARCH");
     if (base_search && strcmp(base_search, "psnr") == 0 && error_target > 0) {
         return error_bound_j2k_psnr(scaled_data, image_dims, tile_dims, codec_data_buffer,
-                decoded, minval, maxval, data, tot_size, error_target, base_quantile_target);
+                decoded, minval, maxval, data, tot_size, error_target, base_quantile_target, session);
     }
     float cr_lo = current_cr;
     float cr_hi = current_cr;
@@ -723,7 +732,7 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
     /* TODO: log according to env, with log.c */
     while ((error_target_quantile < base_quantile_target) && (cr_lo >= cr_lower_bound)) {
         cr_lo /= EBCC_CR_BRACKET_FACTOR;
-        error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
+        error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target, session);
         log_trace("cr_lo: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", cr_lo, 1-error_target_quantile, codec_data_buffer->length);
     }
     if (error_target_quantile < base_quantile_target && cr_lo < cr_lower_bound) {
@@ -737,7 +746,7 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
     error_target_quantile = error_target_quantile_prev;
     while ((error_target_quantile >= base_quantile_target) && (cr_hi <= EBCC_CR_MAX)) {
         cr_hi *= EBCC_CR_BRACKET_FACTOR;
-        error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_hi, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
+        error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_hi, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target, session);
         log_trace("cr_hi: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", cr_hi, 1-error_target_quantile, codec_data_buffer->length);
     }
 
@@ -751,7 +760,7 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
     assert(cr_lo <= cr_hi);
     while ((fabs(error_target_quantile - base_quantile_target) > eps || error_target_quantile == 1.0) && cr_hi - cr_lo > EBCC_CR_INTERVAL_TOLERANCE) {
         current_cr = (cr_lo + cr_hi) / EBCC_BISECTION_DIVISOR;
-        error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
+        error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target, session);
         log_trace("current_cr: %f, cr_lo: %f, cr_hi: %f, 1-error_target_quantile: %.1e, jp2_length: %lu", current_cr, cr_lo, cr_hi, 1-error_target_quantile, codec_data_buffer->length);
         if (error_target_quantile < base_quantile_target) {
             cr_hi = current_cr;
@@ -760,7 +769,7 @@ float error_bound_j2k_compression(uint16_t *scaled_data, size_t *image_dims, siz
         }
     }
     /* use cr_lo as the best feasible cr */
-    error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target);
+    error_target_quantile = emulate_j2k_compression(scaled_data, image_dims, tile_dims, cr_lo, codec_data_buffer, decoded, minval, maxval, data, tot_size, error_target, session);
     if (error_target_quantile < base_quantile_target) {
         log_warn("Could not reach error target quantile of (1-%.2e) (1-%.2e instead).", 1-base_quantile_target, 1-error_target_quantile);
     }
@@ -874,6 +883,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
     log_trace("minval: %e, maxval: %e, const_field: %s", minval, maxval, const_field ? "TRUE" : "FALSE");
 
     uint16_t *scaled_data;
+    ebcc_j2k_session_t *base_session = NULL;
 
     if (!const_field) {
         // scale data to uint16_t
@@ -882,9 +892,20 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             scaled_data[i] = ((data[i] - minval) / (maxval - minval)) * (uint16_t)-1;
         }
 
+        /* Bind an immutable input snapshot to this compression call. Sharing
+         * between both base searches is safe; no state survives this chunk.
+         * Single-encode and multi-tile calls do not benefit from this cache.
+         */
+        const char *warm_start = getenv("EBCC_WARM_START");
+        if (n_tiles == 1 && config->residual_compression_type != NONE &&
+                (!warm_start || strcmp(warm_start, "0") != 0)) {
+            base_session = ebcc_j2k_session_create(scaled_data, image_dims[1], image_dims[0]);
+            if (!base_session) log_warn("Cannot allocate JPEG2000 warm start; using cold encoding");
+        }
+
         // encode using jpeg2000
         codec_data_buffer_clear(&codec_data_buffer);
-        j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
+        j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer, base_session);
         if (config->residual_compression_type == NONE) {
             base_codec_buffer = (uint8_t *) malloc(codec_data_buffer.length);
             memcpy(base_codec_buffer, codec_data_buffer.buffer, codec_data_buffer.length);
@@ -924,7 +945,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             }
             log_info("Actual error target: %f, optimization error target: %f", error_target, optimization_error_target);
 
-            current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, base_quantile_target);
+            current_cr = error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, base_quantile_target, base_session);
             
             for (size_t i = 0; i < tot_size; ++i) {
                 residual[i] = data[i] - decoded[i];
@@ -1040,13 +1061,13 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
             if (!pure_base_codec_consistency_disabled) {
                 codec_data_buffer_clear(&codec_data_buffer);
-                j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer);
+                j2k_encode_internal(scaled_data, image_dims, tile_dims, config->base_cr, &codec_data_buffer, base_session);
                 codec_data_buffer_rewind(&codec_data_buffer);
                 j2k_decode_internal(&decoded, NULL, NULL, minval, maxval, &codec_data_buffer);
                 current_cr = config->base_cr;
             }
             /* ===========Maintain consistency with quantile = 0 (Not necessary) =========== */
-            error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, 1.0);
+            error_bound_j2k_compression(scaled_data, image_dims, tile_dims, current_cr, &codec_data_buffer, &decoded, minval, maxval, data, tot_size, optimization_error_target, 1.0, base_session);
 
             int pure_base_candidate = (codec_data_buffer.length < compressed_size + base_codec_buffer_length) || pure_base_codec_required;
             if (pure_base_candidate) {
@@ -1091,6 +1112,7 @@ size_t ebcc_encode(float *data, codec_config_t *config, uint8_t **out_buffer) {
         free(decoded);
     }
 
+    ebcc_j2k_session_destroy(base_session);
     if (!const_field) free(scaled_data);
 
     log_info("Mean of compression error: %e", cur_mean_error);

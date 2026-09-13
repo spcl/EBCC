@@ -37,19 +37,20 @@ else()
   set(OPENJPEG_LINK_TARGET openjp2_static)
 endif()
 
-add_library(h5z_ebcc SHARED h5z_ebcc.c ebcc_codec.c spiht/spiht_re.c log/log.c)
+add_library(h5z_ebcc SHARED h5z_ebcc.c ebcc_codec.c ebcc_j2k.c spiht/spiht_re.c log/log.c)
 set_property(TARGET h5z_ebcc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 if(WIN32)
   target_compile_definitions(h5z_ebcc PRIVATE EBCC_DLL_EXPORTS)
 endif()
 
 # Add static EBCC library for Rust bindings
-add_library(ebcc STATIC ebcc_codec.c spiht/spiht_re.c log/log.c)
+add_library(ebcc STATIC ebcc_codec.c ebcc_j2k.c spiht/spiht_re.c log/log.c)
 
 option(ZSTD_BUILD_PROGRAMS "" OFF)
 option(BUILD_CODEC "Build OPENJPEG CLI APPS" OFF)
 add_subdirectory(zstd/build/cmake zstd)
 add_subdirectory(openjpeg)
+include(cmake/OpenJPEGWarmStart.cmake)
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/zstd/lib
@@ -73,3 +74,12 @@ install(
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
 )
+
+option(EBCC_BUILD_TESTS "Build EBCC native regression tests" OFF)
+if(EBCC_BUILD_TESTS)
+  enable_testing()
+  add_executable(test_j2k_session ../tests/native/test_j2k_session.c)
+  target_include_directories(test_j2k_session PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(test_j2k_session PRIVATE ebcc)
+  add_test(NAME j2k_session COMMAND test_j2k_session)
+endif()

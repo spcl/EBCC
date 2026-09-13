@@ -1,0 +1,2 @@
+{"warm": 0, "baseline_rss": 214138880, "peak_rss": 442417152, "increase_rss": 228278272, "end_rss": 442384384, "variable": "q", "pressure_level": 500, "time_index": 0, "target": 0.0001, "scale": 6, "mode": "psnr", "encodes": 3, "sampling_seconds": 0.005}
+{"warm": 1, "baseline_rss": 215400448, "peak_rss": 442892288, "increase_rss": 227491840, "end_rss": 442859520, "variable": "q", "pressure_level": 500, "time_index": 0, "target": 0.0001, "scale": 6, "mode": "psnr", "encodes": 3, "sampling_seconds": 0.005}

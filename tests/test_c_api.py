@@ -1,4 +1,5 @@
 import ctypes
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pytest
@@ -374,3 +375,73 @@ def test_zero_base_error_quantile_does_not_bypass_lossless_fallback(ebcc_lib, mo
 
     decoded = decode_chunking(ebcc_lib, encoded, shape)
     assert np.max(np.abs(decoded - data)) <= config.error
+
+
+def warm_start_data(shape, seed=0):
+    rng = np.random.default_rng(seed)
+    y, x = np.indices(shape[-2:], dtype=np.float32)
+    field = 160 * np.sin(x / 9) + 90 * np.cos(y / 11)
+    data = np.broadcast_to(field, shape).copy()
+    data += rng.normal(0, 0.5, shape).astype(np.float32)
+    data.ravel()[data.size // 3] += 500  # Sparse outlier and a large offset.
+    return np.ascontiguousarray(data + 300000, dtype=np.float32)
+
+
+@pytest.mark.parametrize("search", ["cr", "psnr"])
+@pytest.mark.parametrize("target", [0.0001, 0.001, 0.01])
+@pytest.mark.parametrize("tiles", [1, 2])
+def test_warm_start_matches_cold_bytes(ebcc_lib, monkeypatch, search, target, tiles):
+    monkeypatch.setenv("EBCC_BASE_SEARCH", search)
+    data = warm_start_data((tiles, 64, 64))
+    config = make_config(data.shape, base_cr=30, error=target, residual_type=RELATIVE_ERROR)
+    monkeypatch.setenv("EBCC_WARM_START", "0")
+    cold = encode_plain(ebcc_lib, data, config)
+    monkeypatch.delenv("EBCC_WARM_START")  # Reuse is the default.
+    warm = encode_plain(ebcc_lib, data, config)
+    assert warm == cold
+    decoded = decode_chunking(ebcc_lib, warm, data.shape)
+    assert np.max(np.abs(decoded - data)) <= target * np.ptp(data)
+
+
+@pytest.mark.parametrize("search", ["cr", "psnr"])
+def test_warm_start_prepares_once_per_chunk(ebcc_lib, monkeypatch, capfd, search):
+    monkeypatch.setenv("EBCC_BASE_SEARCH", search)
+    monkeypatch.setenv("EBCC_WARM_START", "1")
+    monkeypatch.setenv("EBCC_LOG_LEVEL", "0")
+    data = warm_start_data((2, 64, 64))
+    config = make_config(data.shape, (1, 64, 64), base_cr=30,
+                         error=0.001, residual_type=RELATIVE_ERROR)
+    encode_chunking(ebcc_lib, data, config)
+    trace = capfd.readouterr().err
+    assert trace.count("Base warm start: prepare") == 2
+    assert trace.count("Base warm start: reuse") > 2
+    assert "warm start failed" not in trace
+
+
+@pytest.mark.parametrize("search", ["cr", "psnr"])
+def test_warm_start_concurrent_chunks_are_independent(ebcc_lib, monkeypatch, search):
+    monkeypatch.setenv("EBCC_BASE_SEARCH", search)
+    monkeypatch.setenv("EBCC_LOG_LEVEL", "3")
+    arrays = [warm_start_data((1, 64, 64), seed) for seed in range(4)]
+
+    def encode(data):
+        config = make_config(data.shape, base_cr=30, error=0.001,
+                             residual_type=RELATIVE_ERROR)
+        return encode_plain(ebcc_lib, data, config)
+
+    monkeypatch.setenv("EBCC_WARM_START", "0")
+    expected = [encode(data) for data in arrays]
+    monkeypatch.setenv("EBCC_WARM_START", "1")
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        actual = list(pool.map(encode, arrays * 3))
+    assert actual == expected * 3
+
+
+def test_warm_start_constant_field_skips_preparation(ebcc_lib, monkeypatch, capfd):
+    monkeypatch.setenv("EBCC_WARM_START", "1")
+    monkeypatch.setenv("EBCC_LOG_LEVEL", "0")
+    data = np.full((1, 64, 64), 300000, dtype=np.float32)
+    config = make_config(data.shape, error=0.001, residual_type=RELATIVE_ERROR)
+    encoded = encode_plain(ebcc_lib, data, config)
+    assert "Base warm start:" not in capfd.readouterr().err
+    assert np.array_equal(decode_chunking(ebcc_lib, encoded, data.shape), data)

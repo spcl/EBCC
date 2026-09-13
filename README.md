@@ -80,6 +80,7 @@ HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 setfilter,filename=myfilter tempera
 
 # Extra configurations through environment variables
 - `EBCC_LOG_LEVEL`: valid value int [0, 5], default to 3, 0 - TRACE, 1 - DEBUG, 2 - INFO, 3 - WARN, 4 - ERROR, 5 - FATAL
+- `EBCC_WARM_START`: enabled by default; set to `0` to disable. For single-tile error-bound searches, reuse JPEG2000 wavelet/Tier-1 work across CR or PSNR trials and the final pure-base comparison. The cache belongs to one compression call; multi-tile and lossless encodes use the original path. TRACE logs distinguish `Base warm start: prepare` from `Base warm start: reuse`.
 - `EBCC_INIT_BASE_ERROR_QUANTILE`: valid value float [0, 1), default to 1e-6. For max-error modes, the base JP2 layer is optimized so at least `1 - EBCC_INIT_BASE_ERROR_QUANTILE` of values are within the optimization error target before residual compression is considered. Set to 0 to require the base layer itself to satisfy the target everywhere, which can make residual compression unnecessary.
 - `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK`: when set, turn off the final pure JP2 fallback that can replace JP2 + residual if pure JP2 is smaller or residual compression cannot satisfy the target (not recommended).
 - `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK_CONSISTENCY`: when set, skip resetting the pure JP2 fallback search to the original `base_cr` before enforcing the final max-error target. This can save work but may make fallback behavior less consistent with a fresh pure-base search.
