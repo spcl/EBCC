@@ -1,11 +1,10 @@
 import os
 import pyproj # Avoids HDF5 plugin error
-base_folder = "/home/huanglangwen/Documents/compression-filter"
-#os.environ["HDF5_PLUGIN_PATH"] = str(os.path.join(base_folder, 'ebcc')) + ":" + str(plugins_folder)
-os.environ["HDF5_PLUGIN_PATH"] = str(os.path.join(base_folder, 'ebcc'))
+from ebcc import EBCC_FILTER_DIR
+
+os.environ["HDF5_PLUGIN_PATH"] = EBCC_FILTER_DIR
 import h5py
 import hdf5plugin
-#plugins_folder = hdf5plugin.PLUGIN_PATH
 import numpy as np
 import xarray
 

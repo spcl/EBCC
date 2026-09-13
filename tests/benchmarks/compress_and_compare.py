@@ -1,8 +1,7 @@
 import os
-base_folder = "/home/huanglangwen/Documents/compression-filter"
-os.environ["HDF5_PLUGIN_PATH"] = os.path.join(base_folder, 'ebcc')
-import sys
-sys.path.append(base_folder)
+from ebcc import EBCC_FILTER_DIR
+
+os.environ["HDF5_PLUGIN_PATH"] = EBCC_FILTER_DIR
 import xarray as xr
 import h5py
 import numpy as np
@@ -22,12 +21,10 @@ LEVELS = [1000, 975, 950, 925, 900, 875,
 
 
 def prepare_encoding(method, abs_target, height, width, data_dim):
-    #os.environ["HDF5_PLUGIN_PATH"] = hdf5plugin.PLUGIN_PATH
     if method == "ebcc":
         filter = EBCC_Filter(
             base_cr=30, height=height, width=width,
-            data_dim=data_dim, residual_opt=("max_error_target", abs_target),
-            filter_path=os.path.join(base_folder, 'ebcc'))
+            data_dim=data_dim, residual_opt=("max_error_target", abs_target))
     elif method == "sz":
         filter = hdf5plugin.SZ(absolute=abs_target)
     elif method == "sz3":

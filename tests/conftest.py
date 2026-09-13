@@ -1,14 +1,10 @@
 import os
-import sys
 from pathlib import Path
 
-# Add project root to Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+from ebcc import EBCC_FILTER_DIR
 
 # Set HDF5 plugin path BEFORE importing h5py
-plugin_path = project_root / "src" / "build" / "lib"
-os.environ["HDF5_PLUGIN_PATH"] = str(plugin_path)
+os.environ["HDF5_PLUGIN_PATH"] = EBCC_FILTER_DIR
 
 import pytest
 import numpy as np
@@ -20,14 +16,11 @@ import shutil
 @pytest.fixture(scope="session", autouse=True)
 def setup_hdf5_plugin():
     """Set up HDF5 plugin path for all tests"""
-    current_dir = Path(__file__).parent.parent
-    plugin_path = current_dir / "src" / "build" / "lib"
-    
     # Store original value if it exists
     original_path = os.environ.get("HDF5_PLUGIN_PATH")
     
     # Set the plugin path
-    os.environ["HDF5_PLUGIN_PATH"] = str(plugin_path)
+    os.environ["HDF5_PLUGIN_PATH"] = EBCC_FILTER_DIR
     
     yield
     
