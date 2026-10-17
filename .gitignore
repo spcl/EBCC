@@ -18,3 +18,4 @@ data/test.zarr
 .venv
 *.DS_Store
 .cache
+/PRE_PUBLISH_REPORT.txt

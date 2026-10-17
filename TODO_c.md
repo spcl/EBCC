@@ -1,2 +1,0 @@
-- add 32x32 size check in encode_climate_variable 
-- add version info in the codestream and make it backward compatible

@@ -20,6 +20,8 @@ class EBCCZarrFilter(Codec):
     codec_id = 'ebcc_filter'
     
     def __init__(self, arglist):
+        if len(arglist) > 5:
+            raise ValueError("Unsupported EBCC filter metadata: at most five values are accepted")
         self.arglist = np.array(arglist, dtype=np.uint32)
         self.lib = ctypes.CDLL(EBCC_FILTER_PATH)
         self.lib.populate_config.argtypes = [
@@ -50,6 +52,9 @@ class EBCCZarrFilter(Codec):
         buf = np.ascontiguousarray(buf, dtype=np.float32).ravel()
         self.lib.populate_config(ctypes.byref(codec_config), len(self.arglist), self.arglist, buf.nbytes)
         encoded_size = self.lib.ebcc_encode(buf, ctypes.byref(codec_config), ctypes.byref(out_buffer))
+
+        if not encoded_size or not out_buffer:
+            raise ValueError("EBCC encoding failed: check data, chunk dimensions, and base_cr or error bound")
 
         out_array = ctypes.cast(out_buffer, ctypes.POINTER(ctypes.c_ubyte * encoded_size)).contents
 

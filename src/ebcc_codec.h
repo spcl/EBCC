@@ -16,24 +16,31 @@
 #define EBCC_MIN_INTERNAL_IMAGE_DIM 32
 #define EBCC_MAX_INTERNAL_IMAGE_DIM 2047
 #define EBCC_VERSION_MAJOR 0
-#define EBCC_VERSION_MINOR 1
-#define EBCC_HEADER_VERSION 1
+#define EBCC_VERSION_MINOR 2
+/* One format for all layer combinations; version 1 remains decode-only. */
+#define EBCC_HEAD_VERSION 2
+#define EBCC_MAX_MCT_COMPONENTS 127 /* dense float matrix fits one MCT marker */
+/* Layer selectors occupy two bits of the flags byte. Zero selects defaults. */
 #define EBCC_HEADER_FLAG_CONST_FIELD 0x01
+#define EBCC_HEADER_FLAG_BASE_FIXED_QUANTIZATION 0x02
+#define EBCC_HEADER_FLAG_RESIDUAL_SAMPLE 0x04
+#define EBCC_HEADER_FLAGS_MASK 0x07
 #define EBCC_HEADER_MAGIC "EBCC"
 #define EBCC_CHUNKING_HEADER_VERSION 1
 #define EBCC_CHUNKING_HEADER_MAGIC "EBCK"
 
 typedef enum {
-    NONE,
+    FIXED_CR = 0, /* Base-only encoding at the requested compression ratio. */
     MAX_ERROR,
     RELATIVE_ERROR
 } residual_t;
 
+
 typedef struct {
     size_t dims[NDIMS];
-    float base_cr;
+    float base_cr; /* Target float32 compression ratio for FIXED_CR; ignored for error bounds. */
     residual_t residual_compression_type;
-    float residual_cr;
+    float residual_cr; /* Unused; kept for ABI compatibility. */
     float error;
     size_t chunk_dims[NDIMS];
 } codec_config_t;

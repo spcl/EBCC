@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument('--output-hdf5', default=None, help='Output HDF5 file path (default: data/test.hdf5 relative to this script)')
     parser.add_argument('--output-pdf', default=None, help='Output PDF figure path (default: data/test.pdf relative to this script)')
     parser.add_argument('--base-cr', type=int, default=100, help='Base compression ratio (default: 100)')
-    parser.add_argument('--residual-mode', choices=['none', 'relative_error_target', 'max_error_target'], default='relative_error_target', help='Residual compression mode')
+    parser.add_argument('--residual-mode', choices=['fixed_cr', 'relative_error_target', 'max_error_target'], default='relative_error_target', help='Residual compression mode')
     parser.add_argument('--residual-target', type=float, default=0.009, help='Residual error target value')
     parser.add_argument('--plot', action='store_true', help='Enable plotting and PDF output')
     return parser.parse_args()
@@ -38,7 +38,7 @@ def main():
     data = np.load(npy_path)
     # data = np.zeros((721, 1440)) + 99
 
-    if args.residual_mode == 'none':
+    if args.residual_mode == 'fixed_cr':
         residual_opt = None
     else:
         residual_opt = (args.residual_mode, args.residual_target)

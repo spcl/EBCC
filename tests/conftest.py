@@ -1,14 +1,12 @@
 import os
-import sys
 from pathlib import Path
 
-# Add project root to Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Use the native library shipped by the installed/importable EBCC package.
+from ebcc import EBCC_FILTER_DIR, EBCC_FILTER_PATH
+import ctypes
 
-# Set HDF5 plugin path BEFORE importing h5py
-plugin_path = project_root / "src" / "build" / "lib"
-os.environ["HDF5_PLUGIN_PATH"] = str(plugin_path)
+# HDF5 reads plugin search paths during its first import/initialization.
+os.environ["HDF5_PLUGIN_PATH"] = EBCC_FILTER_DIR
 
 import pytest
 import numpy as np
@@ -20,8 +18,7 @@ import shutil
 @pytest.fixture(scope="session", autouse=True)
 def setup_hdf5_plugin():
     """Set up HDF5 plugin path for all tests"""
-    current_dir = Path(__file__).parent.parent
-    plugin_path = current_dir / "src" / "build" / "lib"
+    plugin_path = EBCC_FILTER_DIR
     
     # Store original value if it exists
     original_path = os.environ.get("HDF5_PLUGIN_PATH")
@@ -29,6 +26,12 @@ def setup_hdf5_plugin():
     # Set the plugin path
     os.environ["HDF5_PLUGIN_PATH"] = str(plugin_path)
     
+    # Register the exact binary under test: old .dylib plugins can coexist in
+    # an editable checkout and HDF5 directory discovery may select one of them.
+    plugin = ctypes.CDLL(EBCC_FILTER_PATH)
+    plugin.H5PLget_plugin_info.restype = ctypes.c_void_p
+    h5py.h5z.register_filter(plugin.H5PLget_plugin_info())
+
     yield
     
     # Restore original value
