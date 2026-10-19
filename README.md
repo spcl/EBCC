@@ -19,7 +19,10 @@ export HDF5_PLUGIN_PATH=$(pwd)
 ```
 
 # Build with pip
-```python
+
+Source builds require a C compiler, CMake, and Git (including builds from source archives). See [OpenJPEG integration](src/openjpeg_support/README.md) for maintenance details.
+
+```bash
 pip install -e .
 # or with optional dependencies
 pip install -e ".[dev]"           # Development dependencies
@@ -27,27 +30,45 @@ pip install -e ".[zarr]"          # Zarr support (requires python 3.11+ for zarr
 ```
 
 # Manual build
-```
+
+```bash
 git clone --recurse-submodules https://github.com/spcl/EBCC.git
-mkdir compression-filter/src/build
-cd compression-filter/src/build
+mkdir -p EBCC/src/build
+cd EBCC/src/build
 cmake -DCMAKE_INSTALL_PREFIX=. ..
 make && make install
 # the compiled filter is stored in `src/build/lib/libh5z_ebcc.so`
 ```
 
 # User guide
-Our compression algorithm is implemented as an HDF5 filter. The filter expects a chunk size equal to a single 2D “frame”, and can scale to any number of dimensions greater or equan than 2.
 
-Its base functionality compresses the data using JPEG2000. The user provides a "base" compression ratio for this functionality.
-The user can also enable a compression of the residual in order to improve accuracy. The residual is the difference between the original frame and the uncompressed frame. The residual is compressed independently of the base frame, and is summed to the uncompressed base frame when decompressing. We support three modes of operation:
-1. `NONE`: there is no residual
-2. `MAX_ERROR`: the residual is wavelet encoded and sparsified. The sparsification factor is found through an iterative process that tries out several factors and selects the largest one that keeps the max error below the selected threshold
-3. `RELATIVE_ERROR`: same as MAX_ERROR, but using the (data-range) relative error instead, rel_error = (x - ref) / (ref.max - ref.min)
+EBCC compresses float32 arrays with at least two dimensions using a JPEG2000 base layer and an optional sparse wavelet residual. Three modes are supported:
 
-The input parameters depend on the chosen mode of operation. As HDF5 filters support integer parameters only, a translation from float and double types to integer representation is required. We provide a python wrapper `EBCC_Filter` in `filter_wrapper.py` to simply the process. An example of how to use the filter using the python `h5py` library can be found in `test.py`
+1. `FIXED_CR` (`"fixed_cr"` or `residual_opt=None`): compress only the base layer using `base_cr` as the target compression ratio relative to the original float32 data. No error bound is enforced; the achieved ratio depends on the data and chunk size.
+2. `MAX_ERROR` (`"max_error_target"`): maximum absolute error in the units of the data.
+3. `RELATIVE_ERROR` (`"relative_error_target"`): maximum absolute error divided by the data range of the entire chunk.
+
+`FIXED_CR` requires a finite positive `base_cr`. The other modes require a finite positive error bound, verify the reconstructed data against that bound, and ignore `base_cr`. Files written by earlier released versions remain readable.
+
+The last two chunk axes are the spatial dimensions `(height, width)`, each of which must be between 32 and 2047. The product of the remaining chunk dimensions must not exceed 127. The Python wrapper defaults to one spatial frame per chunk. Specify `chunks` to compress several levels or time steps together:
+
+```python
+from ebcc.filter_wrapper import EBCC_Filter
+
+# For an array with axes (time, level, latitude, longitude):
+options = EBCC_Filter(
+    height=721, width=1440,
+    residual_opt=("max_error_target", 0.01),
+    data_dim=4, chunks=(2, 37, 721, 1440),
+)
+```
+
+`EBCC_Filter` converts these settings into HDF5 filter parameters. See the [HDF5 example](examples/example_hdf5.py) and [Zarr example](examples/example_zarr.py) for complete usage.
+
+For `FIXED_CR` mode, use `base_cr=30` and `residual_opt=("fixed_cr", 0)`. The command-line equivalent is `python ebcc/filter_wrapper.py --base_cr 30`. Supplying `-m` or `-r` selects an error-bound mode and ignores an explicit `--base_cr` with a warning. With no options, the CLI defaults to a relative error bound of 0.01.
 
 # CDO integration
+
 The latest version of CDO can be downloaded here: `https://code.mpimet.mpg.de/projects/cdo/files`. It can be installed with:
 ```
 tar -xvf <CDO-VERSION>.tar.gz
@@ -57,32 +78,32 @@ make
 sudo make install
 ```
 
-Make sure the necessary libraries are loaded with `export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH`. Installation paths and the variables `CFLAGS` and `CPPFLAGS` may need to be set in order for the configuration and the compliation to succeed.
+Make sure the necessary libraries are loaded with `export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH`. Installation paths and the variables `CFLAGS` and `CPPFLAGS` may need to be set in order for the configuration and the compilation to succeed.
 
-CDO can be now used with the `--filter` options as output by `filter_wrapper.py`. For HDF5 to see the filter, the `HDF5_PLUGIN_PATH` needs to be set.
-As an example, with the default filter configuration and tiles of 721x1440 (used by ERA5):
+Set `HDF5_PLUGIN_PATH` to the plugin directory and use `ebcc/filter_wrapper.py` to generate CDO filter options. For example, with a maximum absolute error of 0.5 and tiles of 721x1440 (used by ERA5):
+
 ```bash
-HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 --filter 308,721,1440,1128792064,3,1008981770 copy temperature.nc compressed.nc
+HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 --filter 308,721,1440,1128792064,1,1056964608 copy temperature.nc compressed.nc
 # or
-HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 --filter $(python filter_wrapper.py --base_cr 30 --height 721 --width 1440 -m 0.5) copy temperature.nc compressed.nc
+HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 --filter $(python ebcc/filter_wrapper.py --height 721 --width 1440 -m 0.5) copy temperature.nc compressed.nc
 ```
 
-As an alternative, the `setfilter` function is also supported. The function allows the user to specify a filter for every variable in a netcdf file. Prepare a file `myfilter` containing the filter specification>
+As an alternative, the `setfilter` function is also supported. The function allows the user to specify a filter for every variable in a netcdf file. Prepare a file `myfilter` containing the filter specification:
+
 ```
-temperature="308,721,1440,1128792064,3,1008981770"
+temperature="308,721,1440,1128792064,1,1056964608"
 ```
 
 Then run:
+
 ```
 HDF5_PLUGIN_PATH=<path/to/filter> cdo -b F32 setfilter,filename=myfilter temperature.nc compressed.nc
 ```
+
 **CAUTION** Make sure to set output precision to float32 in cdo using `-b F32`! Otherwise, undefined behavior will occur (Segmentation Fault or incorrect result). Also make sure the chunksize of input netcdf file is a multiple of the tile size (height, width). If not, please either change height & width or rechunk the file using `nccopy -c ...` .
 
 # Extra configurations through environment variables
-- `EBCC_LOG_LEVEL`: valid value int [0, 5], default to 3, 0 - TRACE, 1 - DEBUG, 2 - INFO, 3 - WARN, 4 - ERROR, 5 - FATAL
-- `EBCC_INIT_BASE_ERROR_QUANTILE`: valid value float [0, 1), default to 1e-6. For max-error modes, the base JP2 layer is optimized so at least `1 - EBCC_INIT_BASE_ERROR_QUANTILE` of values are within the optimization error target before residual compression is considered. Set to 0 to require the base layer itself to satisfy the target everywhere, which can make residual compression unnecessary.
-- `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK`: when set, turn off the final pure JP2 fallback that can replace JP2 + residual if pure JP2 is smaller or residual compression cannot satisfy the target (not recommended).
-- `EBCC_DISABLE_PURE_BASE_COMPRESSION_FALLBACK_CONSISTENCY`: when set, skip resetting the pure JP2 fallback search to the original `base_cr` before enforcing the final max-error target. This can save work but may make fallback behavior less consistent with a fresh pure-base search.
-- `EBCC_DISABLE_MEAN_ADJUSTMENT`: when set, do not shift the stored `minval` and `maxval` by the measured mean compression error. Disabling this keeps the selected compressed representation unchanged by any final mean-bias correction.
-- `EBCC_ERROR_BOUND_STRICT_MODE`: valid value `1` to enable. When enabled, abort compression if the selected pure JP2 or lossless JP2 fallback still exceeds the configured max-error bound. By default, EBCC emits a warning and keeps the selected fallback.
-- `EBCC_ERROR_BOUND_SLACK`: valid value float [0, 1), default to 0.01. When mean adjustment is enabled, max-error and relative-error modes optimize compression against `(1 - EBCC_ERROR_BOUND_SLACK) * error_target`, leaving the remaining fraction of the configured bound for the final mean adjustment. The final `minval`/`maxval` adjustment is still applied only if the adjusted reconstruction stays within the original configured error bound.
+
+- `EBCC_KAPPA`: positive base-layer allocation weight for error-bound modes, default `2.25`; ignored in `FIXED_CR` mode. Larger values retain more JPEG2000 coding passes. The final error bound is still verified; invalid values fall back to the default.
+- `EBCC_DISABLE_MCT=1`: disable the component-axis transform during encoding. Other values keep MCT enabled for multicomponent chunks. Decoding requires no matching encoder settings.
+- `EBCC_LOG_LEVEL`: integer from 0 to 5, default `3`: TRACE, DEBUG, INFO, WARN, ERROR, FATAL.

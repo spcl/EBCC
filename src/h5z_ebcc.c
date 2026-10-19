@@ -71,17 +71,15 @@ EBCC_API void populate_config(codec_config_t *config, size_t cd_nelmts, const un
         config->dims[0] /= cur;
         config->dims[i + 1] = cur;
     }
-    if (config->dims[1] != 0 && config->dims[0] > EBCC_MAX_INTERNAL_IMAGE_DIM / config->dims[1]) {
-        log_fatal("Flattened EBCC image height %lu x %lu exceeds the limit of %d",
-                config->dims[0], config->dims[1],
-                EBCC_MAX_INTERNAL_IMAGE_DIM);
+    if (config->dims[0] > EBCC_MAX_MCT_COMPONENTS) {
+        log_fatal("EBCC MCT supports at most %d leading components per chunk", EBCC_MAX_MCT_COMPONENTS);
         exit(1);
     }
 
     config->base_cr = uint_ptr_to_float(&cd_values[2]);
     config->residual_compression_type = (residual_t) cd_values[3];
     switch (config->residual_compression_type) {
-        case NONE:
+        case FIXED_CR:
             assert(cd_nelmts == 4);
             break;
         case MAX_ERROR:
@@ -117,16 +115,20 @@ static htri_t can_apply_ebcc(hid_t dcpl_id, hid_t type_id, hid_t space_id) {
  * cd_values:
  *  rows
  *  columns
- *  residual mode: none=0, sparsification_ratio=1, max_error=2, relative_error=3, quantile=4
- *  max error (as float) OR quantile (as double)
+ *  base compression ratio (as float bits)
+ *  mode: fixed_cr=0, max_error=1, relative_error=2
+ *  error bound (as float bits; omitted for fixed_cr)
 */
-// cd_values should be: frame rows, frame columns, compression_ratio, quantile (thousandth), levels, quantile (optional)
 static size_t H5Z_filter_ebcc(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t *buf_size, void **buf) {
+    if (cd_nelmts > 5) return 0;
+
     if (flags & H5Z_FLAG_REVERSE) {
         // decompress data
 
         float *out_buffer = NULL;
-        *buf_size = ebcc_decode(*buf, nbytes, &out_buffer);
+        size_t count = ebcc_decode(*buf, nbytes, &out_buffer);
+        if (!count || count > SIZE_MAX / sizeof(float)) { free_buffer(out_buffer); return 0; }
+        *buf_size = count * sizeof(float);
 
         free_buffer(*buf);
         *buf = out_buffer;
@@ -135,10 +137,12 @@ static size_t H5Z_filter_ebcc(unsigned int flags, size_t cd_nelmts, const unsign
     } else {
         codec_config_t config;
 
-        populate_config(&config, cd_nelmts, cd_values, *buf_size);
+        populate_config(&config, cd_nelmts, cd_values, nbytes);
 
         uint8_t *out_buffer = NULL;
-        *buf_size = ebcc_encode(*buf, &config, &out_buffer);
+        size_t encoded_size = ebcc_encode(*buf, &config, &out_buffer);
+        if (!encoded_size) { free_buffer(out_buffer); return 0; }
+        *buf_size = encoded_size;
 
         free_buffer(*buf);
         *buf = out_buffer;

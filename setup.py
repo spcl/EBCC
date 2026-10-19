@@ -93,7 +93,7 @@ class CMakeBuild(build_ext):
         openjpeg_dir = src_dir / "openjpeg"
         zstd_dir = src_dir / "zstd"
         
-        if not (openjpeg_dir / "CMakeLists.txt").exists() or not (zstd_dir / "CMakeLists.txt").exists():
+        if not (openjpeg_dir / "CMakeLists.txt").exists() or not (zstd_dir / "build" / "cmake" / "CMakeLists.txt").exists():
             print("Initializing git submodules...")
             subprocess.run(
                 ["git", "submodule", "update", "--init", "--recursive"],

@@ -95,18 +95,18 @@ class TestZarrIntegration:
         assert np.allclose(data, decoded_zarr, atol=atol), "Decoded Zarr data does not match original within tolerance"
     
     @pytest.mark.parametrize("base_cr", [2, 5, 10])
-    def test_different_compression_ratios(self, base_cr):
-        """Test Zarr filter with different compression ratios"""
+    @pytest.mark.parametrize('residual_opt', [None, ('fixed_cr', 0)])
+    def test_different_compression_ratios(self, base_cr, residual_opt):
+        """Test Zarr base-only encoding with both supported FIXED_CR options."""
         width = 32
         height = 32
         data = self.create_test_data(height, width)
-        atol = 1e-2
         
         ebcc_filter = EBCC_Filter(
             base_cr=base_cr, 
             height=height, 
             width=width, 
-            residual_opt=("max_error_target", atol)
+            residual_opt=residual_opt
         )
         
         zarr_filter = EBCCZarrFilter(ebcc_filter.hdf_filter_opts)
@@ -116,7 +116,11 @@ class TestZarrIntegration:
         decoded = zarr_filter.decode(encoded).reshape(data.shape)
         
         # Verify data integrity
-        assert np.allclose(data, decoded, atol=atol)
+        assert decoded.shape == data.shape and np.isfinite(decoded).all()
+        from test_c_api import EbccHeader
+        header = EbccHeader.from_buffer_copy(encoded)
+        assert header.coeffs_size == header.compressed_size == 0
+        assert header.tail_size > 0
         
         # Higher compression ratios should generally produce smaller output
         original_size = data.nbytes

@@ -61,23 +61,30 @@ class TestNetCDFIntegration:
         assert compression_ratio > 5  # Should achieve at least 5:1 compression
         
     @pytest.mark.parametrize("base_cr", [10, 50, 100, 200])
-    def test_different_compression_ratios(self, test_data_medium, temp_hdf5_file, base_cr):
-        """Test different base compression ratios"""
+    @pytest.mark.parametrize('residual_opt', [None, ('fixed_cr', 0)])
+    def test_different_compression_ratios(self, test_data_medium, temp_hdf5_file, base_cr, residual_opt):
+        """FIXED_CR metadata invokes the filter and produces a readable base-only stream."""
         ebcc_filter = EBCC_Filter(
             base_cr=base_cr,
             height=test_data_medium.shape[0],
             width=test_data_medium.shape[1],
             data_dim=len(test_data_medium.shape),
-            residual_opt=("relative_error_target", 0.01)
+            residual_opt=residual_opt
         )
         
         with h5py.File(temp_hdf5_file, 'w') as f:
             f.create_dataset('compressed', shape=test_data_medium.shape, **ebcc_filter)
             f['compressed'][:] = test_data_medium
+        with h5py.File(temp_hdf5_file, 'r') as f:
             uncompressed = f['compressed'][:]
-        
-        # Higher compression ratios should still work
+            mask, encoded = f['compressed'].id.read_direct_chunk((0, 0))
+        assert mask == 0  # HDF5 must not silently skip a failing optional filter.
+        from test_c_api import EbccHeader
+        header = EbccHeader.from_buffer_copy(encoded)
+        assert header.coeffs_size == header.compressed_size == 0
+        assert header.tail_size > 0 and len(encoded) < test_data_medium.nbytes
         assert uncompressed.shape == test_data_medium.shape
+        assert np.isfinite(uncompressed).all()
         
     def test_multidimensional_data(self, test_data_3d, temp_hdf5_file):
         """Test compression of 3D data"""

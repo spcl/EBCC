@@ -37,24 +37,37 @@ else()
   set(OPENJPEG_LINK_TARGET openjp2_static)
 endif()
 
-add_library(h5z_ebcc SHARED h5z_ebcc.c ebcc_codec.c spiht/spiht_re.c log/log.c)
+# Independent encoder ablations. Decoding always supports both representations.
+option(EBCC_SAMPLE_RESIDUAL "Use sparse sample corrections instead of CDF 5/3 residuals" OFF)
+option(EBCC_FIXED_QUANTIZATION "Use nearest coefficient quantization and retain every coding pass" OFF)
+
+set(EBCC_SOURCES ebcc_codec.c ebcc_encode.c ebcc_decode.c ebcc_decode_legacy.c ebcc_base.c ebcc_residual.c ebcc_wavelet.c ebcc_mct.c spiht/spiht_re.c log/log.c)
+
+add_library(h5z_ebcc SHARED h5z_ebcc.c ${EBCC_SOURCES})
 set_property(TARGET h5z_ebcc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 if(WIN32)
   target_compile_definitions(h5z_ebcc PRIVATE EBCC_DLL_EXPORTS)
 endif()
 
 # Add static EBCC library for Rust bindings
-add_library(ebcc STATIC ebcc_codec.c spiht/spiht_re.c log/log.c)
+add_library(ebcc STATIC ${EBCC_SOURCES})
+foreach(_target h5z_ebcc ebcc)
+  target_compile_definitions(${_target} PRIVATE
+    EBCC_SAMPLE_RESIDUAL=$<BOOL:${EBCC_SAMPLE_RESIDUAL}>
+    EBCC_FIXED_QUANTIZATION=$<BOOL:${EBCC_FIXED_QUANTIZATION}>)
+endforeach()
+
 
 option(ZSTD_BUILD_PROGRAMS "" OFF)
 option(BUILD_CODEC "Build OPENJPEG CLI APPS" OFF)
 add_subdirectory(zstd/build/cmake zstd)
 add_subdirectory(openjpeg)
+include(cmake/OpenJPEGHook.cmake)
 
 include_directories(
+  ${EBCC_OPENJPEG_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/zstd/lib
   ${CMAKE_CURRENT_SOURCE_DIR}/zstd/build/cmake/lib
-  ${CMAKE_CURRENT_SOURCE_DIR}/openjpeg/src/lib/openjp2
   ${CMAKE_CURRENT_BINARY_DIR}/openjpeg/src/lib/openjp2
   ${CMAKE_CURRENT_SOURCE_DIR}/spiht
   ${CMAKE_CURRENT_SOURCE_DIR}/log
